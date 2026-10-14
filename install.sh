@@ -27,9 +27,10 @@ dkms add "sb-ae9/$VER"
 dkms build "sb-ae9/$VER" -k "$(uname -r)"
 dkms install "sb-ae9/$VER" -k "$(uname -r)" --force
 for m in snd-hda-core snd-hda-codec-ca0132; do
-  modinfo -n "$m" | grep -q '/updates/' || { echo "depmod did not pick up the $m override"; exit 1; }
+  # Fedora's dkms ignores DEST_MODULE_LOCATION and installs to extra/, same as akmods.
+  modinfo -n "$m" | grep -qE '/(updates|extra)/' || { echo "depmod did not pick up the $m override"; exit 1; }
 done
-echo "modules installed under /lib/modules/$(uname -r)/updates (DKMS rebuilds them for new kernels)"
+echo "modules installed under /lib/modules/$(uname -r)/{updates,extra} (DKMS rebuilds them for new kernels)"
 
 echo "== 2/5 DSP firmware segment =="
 if [ "$FW" = 1 ]; then
