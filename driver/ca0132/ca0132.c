@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
+#include <linux/version.h>
 #include <linux/firmware.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -27,7 +28,40 @@
  * every dropout/freeze on 2026-09-08 coincided with the live service. */
 static int ae9_acm_poll = 1;
 module_param(ae9_acm_poll, int, 0644);
-MODULE_PARM_DESC(ae9_acm_poll, "AE-9 ACM: 0 = init once and stay quiet (default), 1 = live knob/display service");
+MODULE_PARM_DESC(ae9_acm_poll, "AE-9 ACM: 1 = live knob/display/button service (default), 0 = init once and stay quiet");
+
+/* Mute the line-out that is not selected so AE-9 Output is a real switch:
+ * the ES9038 front mute (reg 0x1d) for Headphone, the ACM amp bit for
+ * Speakers. Set to 0 to restore the old behaviour where both outputs can be
+ * audible at once. */
+static bool ae9_out_mute = true;
+module_param(ae9_out_mute, bool, 0644);
+MODULE_PARM_DESC(ae9_out_mute, "AE-9: mute the unselected output when switching headphone/line-out (default 1)");
+
+/* The AE-9 main codec's capture path runs through the DSP and is not brought
+ * up; starting a capture stream there hard-locks the machine (2026-09-09: an
+ * application fell back to the card's analog capture when a USB microphone
+ * was unplugged; the box froze without a kernel message). The secondary codec
+ * (0x11020072) has a plain HDA ADC behind the rear line-in and S/PDIF in and
+ * is safe to expose. ae9_capture=1 lifts the block on the main codec. */
+/* 6.18+ renamed the unbound system workqueue; 7.x warns on the old name. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0)
+#define AE9_WQ system_dfl_wq
+#else
+#define AE9_WQ system_unbound_wq
+#endif
+
+static bool ae9_capture;
+module_param(ae9_capture, bool, 0444);
+MODULE_PARM_DESC(ae9_capture, "AE-9: expose capture streams on the MAIN codec (DSP input); the secondary codec's standard ADC capture is always exposed and the main one hard-locks the machine unless ae9_mic=1 too (default 0)");
+
+/* Bring up the DSP microphone path. The AE-9-specific port writes are already
+ * in ca0132_alt_dsp_initial_mic_setup(); ae9_setup_defaults grew out of the
+ * playback trace and never called it. Off by default until the capture stream
+ * is proven safe on the card. */
+static bool ae9_mic;
+module_param(ae9_mic, bool, 0444);
+MODULE_PARM_DESC(ae9_mic, "AE-9: initialise the DSP mic path (experimental, default 0)");
 #include <asm/io.h>
 #include <sound/core.h>
 #include <sound/hda_codec.h>
@@ -6156,14 +6190,31 @@ static int ae5_sound_filter_put(struct snd_kcontrol *kcontrol,
  * front microphone has no auto-detect, and we need a way to set the rear
  * as line-in
  */
+static unsigned int ca0132_input_items(struct ca0132_spec *spec)
+{
+	/*
+	 * The AE-7 and AE-9 have no front microphone. The generic CA0132
+	 * selector exposes three items; limit those cards to rear mic and
+	 * line-in so desktop UIs do not offer a silent "Front Microphone".
+	 */
+	if (ca0132_quirk(spec) == QUIRK_AE7 ||
+	    ca0132_quirk(spec) == QUIRK_AE9)
+		return 2;
+	return IN_SRC_NUM_OF_INPUTS;
+}
+
 static int ca0132_alt_input_source_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
 {
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ca0132_spec *spec = codec->spec;
+	unsigned int items = ca0132_input_items(spec);
+
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
-	uinfo->value.enumerated.items = IN_SRC_NUM_OF_INPUTS;
-	if (uinfo->value.enumerated.item >= IN_SRC_NUM_OF_INPUTS)
-		uinfo->value.enumerated.item = IN_SRC_NUM_OF_INPUTS - 1;
+	uinfo->value.enumerated.items = items;
+	if (uinfo->value.enumerated.item >= items)
+		uinfo->value.enumerated.item = items - 1;
 	strscpy(uinfo->value.enumerated.name,
 			in_src_str[uinfo->value.enumerated.item]);
 	return 0;
@@ -6174,8 +6225,11 @@ static int ca0132_alt_input_source_get(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ca0132_spec *spec = codec->spec;
+	unsigned int items = ca0132_input_items(spec);
 
 	ucontrol->value.enumerated.item[0] = spec->in_enum_val;
+	if (ucontrol->value.enumerated.item[0] >= items)
+		ucontrol->value.enumerated.item[0] = items - 1;
 	return 0;
 }
 
@@ -6185,14 +6239,7 @@ static int ca0132_alt_input_source_put(struct snd_kcontrol *kcontrol,
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ca0132_spec *spec = codec->spec;
 	int sel = ucontrol->value.enumerated.item[0];
-	unsigned int items = IN_SRC_NUM_OF_INPUTS;
-
-	/*
-	 * The AE-7 has no front microphone, so limit items to 2: rear mic and
-	 * line-in.
-	 */
-	if (ca0132_quirk(spec) == QUIRK_AE7)
-		items = 2;
+	unsigned int items = ca0132_input_items(spec);
 
 	if (sel >= items)
 		return 0;
@@ -7564,6 +7611,19 @@ static const struct hda_pcm_stream ca0132_pcm_digital_capture = {
 	.channels_max = 2,
 };
 
+static inline bool ae9_capture_blocked(struct hda_codec *codec)
+{
+	/*
+	 * The AE-9 main codec (0x11020071) routes capture through the DSP and
+	 * opening it hard-locks the machine (2026-09). The secondary codec
+	 * (0x11020072) has a plain HDA ADC behind the rear line-in and S/PDIF
+	 * in; that path is safe and stays available. ae9_capture=1 lifts the
+	 * block on the main codec for experiments.
+	 */
+	if (codec->core.subsystem_id != 0x11020071)
+		return false;
+	return !(ae9_capture && ae9_mic);
+}
 static int ca0132_build_pcms(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
@@ -7581,6 +7641,10 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->dacs[0];
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max =
 		spec->multiout.max_channels;
+	if (ae9_capture_blocked(codec)) {
+		codec_info(codec, "AE-9: capture streams not created (ae9_capture=0)\n");
+		goto digital;
+	}
 	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0132_pcm_analog_capture;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[0];
@@ -7603,7 +7667,8 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[2];
 
-	if (!spec->dig_out && !spec->dig_in)
+digital:
+	if (!spec->dig_out && !(spec->dig_in && !ae9_capture_blocked(codec)))
 		return 0;
 
 	info = snd_hda_codec_pcm_new(codec, "CA0132 Digital");
@@ -7615,7 +7680,7 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 			ca0132_pcm_digital_playback;
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->dig_out;
 	}
-	if (spec->dig_in) {
+	if (spec->dig_in && !ae9_capture_blocked(codec)) {
 		info->stream[SNDRV_PCM_STREAM_CAPTURE] =
 			ca0132_pcm_digital_capture;
 		info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in;
@@ -7629,6 +7694,10 @@ static int dbpro_build_pcms(struct hda_codec *codec)
 	struct ca0132_spec *spec = codec->spec;
 	struct hda_pcm *info;
 
+	if (ae9_capture_blocked(codec)) {
+		codec_info(codec, "AE-9: capture streams not created (ae9_capture=0)\n");
+		goto digital;
+	}
 	info = snd_hda_codec_pcm_new(codec, "CA0132 Alt Analog");
 	if (!info)
 		return -ENOMEM;
@@ -7636,8 +7705,8 @@ static int dbpro_build_pcms(struct hda_codec *codec)
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[0];
 
-
-	if (!spec->dig_out && !spec->dig_in)
+digital:
+	if (!spec->dig_out && !(spec->dig_in && !ae9_capture_blocked(codec)))
 		return 0;
 
 	info = snd_hda_codec_pcm_new(codec, "CA0132 Digital");
@@ -7649,7 +7718,7 @@ static int dbpro_build_pcms(struct hda_codec *codec)
 			ca0132_pcm_digital_playback;
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->dig_out;
 	}
-	if (spec->dig_in) {
+	if (spec->dig_in && !ae9_capture_blocked(codec)) {
 		info->stream[SNDRV_PCM_STREAM_CAPTURE] =
 			ca0132_pcm_digital_capture;
 		info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in;
@@ -8868,7 +8937,6 @@ static void ae9_post_dsp_finish(struct hda_codec *codec)
 	ae9_dev49_write(codec, 0x05, 0x15);
 	ae9_dev49_write(codec, 0x02, 0x15);
 	ae9_dev49_write(codec, 0x03, 0x15);
-	ae9_dev49_write(codec, 0x0a, 0x06);
 	/* headphone-mode THD table (DAC mode 3): 0x19 = 1, rest 0 */
 	ae9_dac_write(codec, 0x0d, 0x00);
 	ae9_dac_write(codec, 0x16, 0x00);
@@ -9059,6 +9127,7 @@ static void ae9_dsp_defaults(struct hda_codec *codec)
 	dspio_set_uint_param(codec, 0x96, 0x3c, FLOAT_ZERO);
 	dspio_set_uint_param(codec, 0x31, 0x00, FLOAT_TWO);
 	dspio_set_uint_param(codec, 0x32, 0x00, FLOAT_TWO);
+	chipio_set_conn_rate(codec, MEM_CONNID_WUH, SR_48_000);
 }
 
 /*
@@ -9297,14 +9366,22 @@ static bool ae9_acm_keepalive(struct ca0132_spec *spec)
 }
 
 /* F0 11 09 <8 ASCII, NUL padded> 00 F7 : display text */
-static void ae9_acm_display(struct ca0132_spec *spec, const char *txt)
+static void ae9_acm_display_frame(struct ca0132_spec *spec, const char *txt, bool wait)
 {
 	u8 f[13] = { 0xf0, 0x11, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xf7 };
 	int i;
 
 	for (i = 0; i < 8 && txt[i]; i++)
 		f[3 + i] = txt[i];
-	ae9_acm_cmd(spec, f, sizeof(f));
+	if (wait)
+		ae9_acm_cmd(spec, f, sizeof(f));
+	else
+		ae9_acm_tx(spec, f, sizeof(f));	/* fire and forget: volume display */
+}
+
+static void ae9_acm_display(struct ca0132_spec *spec, const char *txt)
+{
+	ae9_acm_display_frame(spec, txt, true);
 }
 
 /* 'Master Playback Volume' on the AE-9 is a virtual master whose slave is
@@ -9360,7 +9437,7 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
 		snprintf(txt, sizeof(txt), "MUTE");
 	else
 		snprintf(txt, sizeof(txt), "%s%d.%d", db100 ? "-" : "", db100 / 100, (db100 % 100) / 10);
-	ae9_acm_display(spec, txt);
+	ae9_acm_display_frame(spec, txt, false);
 }
 
 /* Push the current Output Select to the ACM's analog mux (§10.6: reg2 bit2 =
@@ -9464,6 +9541,36 @@ static void ae9_acm_service_knob_press(struct hda_codec *codec)
 	}
 }
 
+/*
+ * The ACM amp bit (reg2 bit6) only enables the headphone amplifier. On this
+ * card the rear line-out is fed by the same ES9038Q2M as the headphones, so
+ * muting that DAC silences both (2026-10-31: Speakers = silence, Headphone =
+ * both jacks live). The independent line-out mute is ES9038 front mute, reg
+ * 0x1d, the same register Windows' Front_Mute (INF index 12) writes:
+ *   0x40 = frontal/line-out unmuted, 0x80 = muted.
+ * The SABRE9006 (dev 0x49) is left at its bring-up unmuted value; writing
+ * 0x0a=0x07 there does not silence the rear jacks on the Fedora card.
+ * Called whenever the ACM output mode is applied (init and every switch).
+ */
+static void ae9_apply_output_path(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+	bool hp = spec->cur_out_type == HEADPHONE_OUT;
+
+	if (ca0132_quirk(spec) != QUIRK_AE9)
+		return;
+	if (!ae9_out_mute)
+		return;
+
+	/* Both paths need the ES9038 running; only the front/line-out buffer
+	 * is muted for headphones. Speakers mute the headphone amp instead
+	 * (ACM reg2 bit6), so the DAC stays live for the rear jacks. */
+	ae9_dac_write(codec, 0x07, 0x80);		/* ES9038 unmuted */
+	ae9_dac_write(codec, 0x1d, hp ? 0x80 : 0x40);	/* front mute */
+	codec_info(codec, "AE-9 output path: %s (ES9038 unmuted, line-out %s)\n",
+		   hp ? "headphone" : "line-out", hp ? "muted" : "unmuted");
+}
+
 /* Windows writes exactly one ACM register bit for the output: reg2 bit6 (the
  * headphone amp, item 3, F0 03 03 02 <00|40> 40). reg2 bit2 / reg7 bit0
  * (items 5/6) are the module's OWN output selector and are only ever read by
@@ -9473,9 +9580,12 @@ static void ae9_acm_apply_regs(struct ca0132_spec *spec)
 	ae9_acm_setreg(spec, 0x02, spec->cur_out_type == HEADPHONE_OUT ? 0x40 : 0x00, 0x40);
 }
 
-static void ae9_acm_apply_mode(struct ca0132_spec *spec)
+static void ae9_acm_apply_mode(struct hda_codec *codec)
 {
+	struct ca0132_spec *spec = codec->spec;
+
 	ae9_acm_apply_regs(spec);
+	ae9_apply_output_path(codec);
 	ae9_acm_display(spec, spec->cur_out_type == HEADPHONE_OUT ? "-HP-" : "-SP-");
 	spec->ae9_acm_show_mode_ticks = 10;
 }
@@ -9589,7 +9699,7 @@ static bool ae9_acm_init(struct hda_codec *codec)
 	ae9_acm_cmd(spec, led, sizeof(led));		/* encoder LED on */
 	ae9_acm_display(spec, "AE-9");
 	ae9_acm_cmd(spec, blink, sizeof(blink));	/* blink interval 0 */
-	ae9_acm_apply_mode(spec);
+	ae9_acm_apply_mode(codec);
 	codec_info(codec, "AE-9 ACM: present, firmware 0x%08x, output %s\n",
 		   spec->ae9_acm_fw,
 		   spec->cur_out_type == HEADPHONE_OUT ? "headphone" : "speakers");
@@ -9658,6 +9768,7 @@ static void ae9_acm_work_fn(struct work_struct *work)
 	struct ca0132_spec *spec = container_of(to_delayed_work(work),
 						struct ca0132_spec, ae9_acm_work);
 	struct hda_codec *codec = spec->codec;
+	bool turbo = spec->ae9_acm_turbo > 0;
 
 	ae9_gpio_cmd(spec, 0x0105);
 	if (!spec->ae9_acm_present) {
@@ -9674,26 +9785,37 @@ static void ae9_acm_work_fn(struct work_struct *work)
 	if (!ae9_acm_poll)
 		return;			/* parked at runtime via /sys/module/.../parameters */
 	spec->ae9_acm_tick++;
-	if (!ae9_acm_keepalive(spec)) {
-		if (++spec->ae9_acm_dead_ticks >= 6) {
-			codec_info(codec, "AE-9 ACM: no keepalive reply for %d ticks, re-initialising\n",
-				   spec->ae9_acm_dead_ticks);
+	/*
+	 * While the knob is moving only the knob and the display are serviced.
+	 * The keepalive is still sent every 10th tick (500 ms) so the ACM does
+	 * not consider the host gone; the button probes and register checks are
+	 * deferred, because their UART waits were what made a 50 ms turbo tick
+	 * take almost a second.
+	 */
+	if (!turbo || (spec->ae9_acm_tick % 10) == 0) {
+		if (!ae9_acm_keepalive(spec)) {
+			if (++spec->ae9_acm_dead_ticks >= 6) {
+				codec_info(codec, "AE-9 ACM: no keepalive reply for %d ticks, re-initialising\n",
+					   spec->ae9_acm_dead_ticks);
+				spec->ae9_acm_dead_ticks = 0;
+				spec->ae9_acm_present = false;
+				goto out;
+			}
+		} else {
 			spec->ae9_acm_dead_ticks = 0;
-			spec->ae9_acm_present = false;
-			goto out;
 		}
-	} else {
-		spec->ae9_acm_dead_ticks = 0;
 	}
 	if (spec->ae9_acm_pending_mode) {
 		spec->ae9_acm_pending_mode = false;
-		ae9_acm_apply_mode(spec);
-	} else if ((spec->ae9_acm_tick % 10) == 0) {
+		ae9_acm_apply_mode(codec);
+	} else if (!turbo && (spec->ae9_acm_tick % 10) == 0) {
 		ae9_acm_check_regs(codec);
 	}
 	ae9_acm_knob(codec);
-	ae9_acm_service_buttons(codec);
-	ae9_acm_service_knob_press(codec);
+	if (!turbo) {
+		ae9_acm_service_buttons(codec);
+		ae9_acm_service_knob_press(codec);
+	}
 	if (spec->ae9_acm_pending_fx) {
 		spec->ae9_acm_pending_fx = false;
 		ae9_acm_set_fx_light(spec, ae9_fx_enabled(spec));
@@ -9708,9 +9830,9 @@ static void ae9_acm_work_fn(struct work_struct *work)
 out:
 	if (spec->ae9_acm_turbo > 0) {
 		spec->ae9_acm_turbo--;
-		queue_delayed_work(system_unbound_wq, &spec->ae9_acm_work, msecs_to_jiffies(50));
+		queue_delayed_work(AE9_WQ, &spec->ae9_acm_work, msecs_to_jiffies(50));
 	} else {
-		queue_delayed_work(system_unbound_wq, &spec->ae9_acm_work, msecs_to_jiffies(500));
+		queue_delayed_work(AE9_WQ, &spec->ae9_acm_work, msecs_to_jiffies(500));
 	}
 }
 
@@ -9762,12 +9884,16 @@ static void ae9_setup_defaults(struct hda_codec *codec)
 	 * all be in place before any stream runs.
 	 */
 	ae9_dsp_scp_startup(codec);		/* W1: DSP master-control "go" */
+	if (ae9_mic)
+		ca0132_alt_init_analog_mics(codec);
 	ae9_dsp_defaults(codec);		/* W2: module defaults, no streams */
 	ae9_post_dsp_d0_prepare(codec);		/* W3: pins, ACM power, DAC mute */
 	ae9_post_dsp_asi_pll_setup(codec);	/* W4: ASI/PLL, then start streams */
 	ae9_dsp_output_connect(codec);	/* W4b: module 0x37 output routing (Windows) */
 	ae9_post_dsp_dac_init(codec);		/* W5: ES9038 + SABRE registers */
 	ae9_post_dsp_finish(codec);		/* W6: LED, unmute */
+	if (ae9_mic)
+		ca0132_alt_dsp_initial_mic_setup(codec);
 
 	/* W10: effects + speaker-tuning defaults, as Windows does after unmute */
 	num_fx = OUT_EFFECTS_COUNT + IN_EFFECTS_COUNT + 1;
@@ -9791,7 +9917,7 @@ static void ae9_setup_defaults(struct hda_codec *codec)
 	codec_info(codec, "AE-9: converter bring-up done (capture-based, OutFX %s)\n",
 		   spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID] ? "on" : "off");
 	ae9_dump_dsp_output_state(codec, "idle after bring-up");
-	queue_delayed_work(system_unbound_wq, &spec->ae9_acm_work, msecs_to_jiffies(500));
+	queue_delayed_work(AE9_WQ, &spec->ae9_acm_work, msecs_to_jiffies(500));
 }
 
 static void ae7_setup_defaults(struct hda_codec *codec)
@@ -10985,7 +11111,7 @@ static int ca0132_init(struct hda_codec *codec)
 			if (ca0132_quirk(spec) == QUIRK_SBZ)
 				sbz_dsp_startup_check(codec);
 			if (ca0132_quirk(spec) == QUIRK_AE9)
-				queue_delayed_work(system_unbound_wq, &spec->ae9_acm_work,
+				queue_delayed_work(AE9_WQ, &spec->ae9_acm_work,
 						      msecs_to_jiffies(500));
 			return 0;
 		}

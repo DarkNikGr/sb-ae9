@@ -43,23 +43,27 @@ if [ "$FW" = 1 ]; then
   fi
 fi
 
-echo "== 3/5 module options + WirePlumber rules =="
+echo "== 3/5 module options + WirePlumber/PipeWire rules =="
 install -m 644 "$SRC/install/sb-ae9.conf" /etc/modprobe.d/sb-ae9.conf
 if [ -d /usr/share/wireplumber/main.lua.d ]; then      # WirePlumber 0.4.x
-  for f in 51-ae9-soft-mixer 52-ae9-no-capture; do
+  for f in 51-ae9-soft-mixer; do
     install -D -m 644 "$SRC/install/$f.lua" "$home/.config/wireplumber/main.lua.d/$f.lua"
   done
   chown -R "$usr:" "$home/.config/wireplumber"
 else                                                      # WirePlumber 0.5+
-  for f in 51-ae9-soft-mixer 52-ae9-no-capture; do
+  for f in 51-ae9-soft-mixer; do
     install -D -m 644 "$SRC/install/$f.conf" "$home/.config/wireplumber/wireplumber.conf.d/$f.conf"
   done
   chown -R "$usr:" "$home/.config/wireplumber"
 fi
+install -D -m 644 "$SRC/install/20-ae9-inputs.conf" "$home/.config/pipewire/pipewire.conf.d/20-ae9-inputs.conf"
+chown "$usr:" "$home/.config/pipewire/pipewire.conf.d/20-ae9-inputs.conf"
 
 echo "== 4/5 session defaults (user service) =="
 install -D -m 755 "$SRC/install/ae9-defaults.sh" /usr/local/libexec/sb-ae9/ae9-defaults.sh
 install -D -m 644 "$SRC/install/ae9-defaults.service" "$home/.config/systemd/user/ae9-defaults.service"
+install -D -m 755 "$SRC/install/ae9-resume.sh" /usr/local/libexec/sb-ae9/ae9-resume.sh
+install -D -m 755 "$SRC/install/ae9-resume-sleep" /usr/lib/systemd/system-sleep/50-ae9-resume
 chown -R "$usr:" "$home/.config/systemd"
 sudo -u "$usr" XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user daemon-reload 2>/dev/null || true
 sudo -u "$usr" XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user enable ae9-defaults.service 2>/dev/null || true
