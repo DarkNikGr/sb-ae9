@@ -243,14 +243,16 @@ Headphone output, effects off). The file header also carries a ready
 - ACM microphone (main codec): `arecord -D hw:Creative,0 -f S32_LE -r 48000 -c 2 -d 5 mic.wav`
 - Rear line-in (secondary codec): `arecord -D hw:Creative,4 -f S32_LE -r 48000 -c 2 -d 5 line.wav`
 - What U Hear (DSP loopback of playback): `arecord -D hw:Creative,2 -f S32_LE -r 48000 -c 2 -d 5 loop.wav`
-- Under PipeWire the ACM mic is the default source. `install/20-ae9-inputs.conf`
-  also exposes **"Sound Blaster AE-9 Line In"** (device 4), **"Sound Blaster AE-9 What U Hear"**
-  (device 2) and **"Sound Blaster AE-9 S/PDIF"** (device 10) as separate sources; select them
-  in Audacity/OBS/GNOME. The optical output is the separate **"Sound Blaster AE-9 Optical
-  S/PDIF"** sink. The S/PDIF input is silent until the optical input switch is on;
-  `ae9-defaults` turns it on at login, and the GUI's Output page has the same switch.
-  In Audacity, prefer the AE-9 source over the generic `default` entry, which can advertise a
-  bogus 128-channel maximum; set 1 or 2 recording channels.
+- Under PipeWire the ACM mic is the default source. The card's nodes are named
+  **"Sound Blaster AE-9 Output"** and **"Sound Blaster AE-9 Microphone"**; the optical
+  output is the separate **"Sound Blaster AE-9 Optical S/PDIF"** sink.
+  `install/20-ae9-inputs.conf` also exposes **"Sound Blaster AE-9 Line In"** (device 4),
+  **"Sound Blaster AE-9 What U Hear"** (device 2) and **"Sound Blaster AE-9 S/PDIF"**
+  (device 10) as separate sources; select them in Audacity/OBS/GNOME. The S/PDIF input is
+  silent until the optical input switch is on; `ae9-defaults` turns it on at login, and the
+  GUI's Output page has the same switch. In Audacity, prefer the AE-9 source over the generic
+  `default` entry, which can advertise a bogus 128-channel maximum; set 1 or 2 recording
+  channels.
 - What U Hear is the loopback of what the card is playing (tested with a 440 Hz tone at
   −26 dBFS); S/PDIF in (device 10) works and was tested with an optical loopback at
   44.1–192 kHz. The ACM 48 V phantom command is not exposed yet (dynamic mics work).
@@ -332,12 +334,13 @@ bit-exactness.
 
 For normal playback use the **"Sound Blaster AE-9 Optical S/PDIF"** output in
 GNOME/Audacity. It is the extra sink on playback device 10, the one wired to the
-optical port. The card's ACP digital profile is not offered at all:
-`install/ae9-profiles.conf` plus the udev rule `90-sb-ae9-profile.rules` make
-PipeWire load an analog-only profile set, because the ACP iec958 mapping uses
-PCM device 1, which is not wired to the optical port on this card. The matching
-input is **"Sound Blaster AE-9 S/PDIF"** (capture device 10). Both switches are
-turned on by `ae9-defaults`.
+optical port. The card's ACP digital profile uses PCM device 1, which is not
+wired to the optical port on this card; if it is selected, its **"Sound Blaster
+AE-9 S/PDIF (internal)"** sink appears but is silent at the optical port, and the
+analog sink disappears while the digital profile is active. `ae9-defaults` puts
+the card back on the analog profile at login. The matching input is **"Sound
+Blaster AE-9 S/PDIF"** (capture device 10). Both switches are turned on by
+`ae9-defaults`.
 
 ### Module parameters
 `ae9_capture=1` + `ae9_mic=1` (set by `install/sb-ae9.conf`) create the main codec's capture
@@ -471,8 +474,8 @@ from a card the maintainers do not own usually says exactly where it went wrong.
 - `tools/ae9-firmware-extract.sh` — firmware segment extractor; `tools/collect-report.sh` — bug-report
   collector; `tools/acm-tool/` — ACM/BAR2 diagnostics; `tools/ae9-fx` — the GTK 4 control panel;
   `tools/spdif-loopback-test.sh` — optical S/PDIF self-test.
-- `install/` — modprobe drop-in (capture + mic init), PipeWire source/name rules, the analog-only
-  ALSA profile set + udev rule, session defaults + user service, post-resume unmute hook.
+- `install/` — modprobe drop-in (capture + mic init), PipeWire source/name rules, the udev name
+  rule, session defaults + user service, post-resume unmute hook.
 - `docs/` — the investigation log, reverse-engineering notes for the ACM protocol and the
   Windows bring-up, and the decoded register captures the driver was derived from.
 

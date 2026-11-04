@@ -1,0 +1,3 @@
+# Sound Blaster AE-9: present the card as "Sound Blaster AE-9" instead of the
+# chipset string from the hardware database.
+SUBSYSTEM=="sound", KERNEL=="card*", ATTRS{vendor}=="0x1102", ATTRS{device}=="0x0010", ATTRS{subsystem_device}=="0x0071", ENV{ID_MODEL_FROM_DATABASE}="Sound Blaster AE-9"
