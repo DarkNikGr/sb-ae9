@@ -216,6 +216,33 @@ def find_sink():
     return None
 
 
+def sink_playback_streams(node):
+    """True if a playback stream (not just a monitor) is linked to the sink."""
+    try:
+        p = subprocess.run(["pw-dump"], capture_output=True, text=True)
+        data = json.loads(p.stdout or "[]")
+    except (OSError, ValueError):
+        return False
+    nodes = {o.get("id"): o.get("info", {}).get("props", {}) for o in data}
+    for o in data:
+        props = o.get("info", {}).get("props", {})
+        if props.get("link.input.node") != node:
+            continue
+        src = props.get("link.output.node")
+        src_props = nodes.get(src, {})
+        if not str(src_props.get("media.class", "")).startswith("Stream/Output/Audio"):
+            continue
+        # A paused player keeps the link; only a running stream is playback.
+        try:
+            info = subprocess.run(["pw-cli", "info", str(src)],
+                                  capture_output=True, text=True).stdout
+        except OSError:
+            return False
+        if 'state: "running"' in info:
+            return True
+    return False
+
+
 def sink_format(node):
     """(format, channels, rate) the sink is running right now."""
     out = _pw("enum-params", str(node), "Format")
@@ -1041,7 +1068,9 @@ class Win(Adw.ApplicationWindow):
         except (RuntimeError, OSError):
             return
         self.format_row.set_subtitle(
-            f"{fmt} · {ch} ch · {rate} Hz" if fmt else "idle (device suspended)")
+            f"{fmt} · {ch} ch · {rate} Hz" if fmt and sink_playback_streams(node)
+            else f"held at {rate} Hz (no active stream)" if fmt
+            else "idle (device suspended)")
         allowed = " ".join(str(r) for r in rates) or "—"
         self.clock_row.set_subtitle(f"{clock or '—'} Hz · allowed: {allowed}")
 
