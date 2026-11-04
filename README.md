@@ -341,7 +341,8 @@ AE-9 S/PDIF (internal)"** sink appears but is silent at the optical port, and th
 analog sink disappears while the digital profile is active. `ae9-defaults` puts
 the card back on the analog profile at login. The matching input is **"Sound
 Blaster AE-9 S/PDIF"** (capture device 10). Both switches are turned on by
-`ae9-defaults`.
+`ae9-defaults`. The optical link is stereo PCM; 5.1 is available on the analog
+line-out, not over S/PDIF (the card's AC3 mapping is not used by this adapter).
 
 ### Module parameters
 `ae9_capture=1` + `ae9_mic=1` (set by `install/sb-ae9.conf`) create the main codec's capture

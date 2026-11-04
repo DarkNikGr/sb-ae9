@@ -724,7 +724,8 @@ class Win(Adw.ApplicationWindow):
             "'Sound Blaster AE-9 Optical S/PDIF' sink; the ACP digital "
             "profile's sink uses the other PCM and is silent at the optical "
             "port. The input is the 'Sound Blaster AE-9 S/PDIF' PipeWire "
-            "source.")
+            "source. The optical link is stereo PCM; 5.1 is available on the "
+            "analog line-out, not over S/PDIF.")
         page.add(g4)
 
     def page_format(self, page):
