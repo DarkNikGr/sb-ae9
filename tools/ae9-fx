@@ -143,7 +143,19 @@ def read(name):
     return st
 
 
+# A simple control that combines a capture volume and a switch (Capture,
+# What U Hear) rejects `sset <name> on|off`; the raw switch has a different
+# name, so go straight to its numid.
+CAPTURE_SWITCHES = {
+    "Capture": "Capture Switch",
+    "What U Hear": "What U Hear Capture Switch",
+}
+
+
 def apply_ctl(name, value):
+    if value in ("on", "off") and name in CAPTURE_SWITCHES:
+        amixer("cset", f"numid={find_numid(CAPTURE_SWITCHES[name])}", value)
+        return
     try:
         amixer("sset", name, str(value))
     except RuntimeError:
@@ -814,6 +826,26 @@ class Win(Adw.ApplicationWindow):
                        "Microphone / Line In")
         page.add(g)
 
+        glevel = Adw.PreferencesGroup(
+            title="Levels",
+            description="Capture amp in 1 dB steps: 90 = 0 dB, 99 = +9 dB")
+        self.add_switch(glevel, "Capture", "Capture",
+                        "Input capture switch for the selected source")
+        self.add_scale(glevel, None, "Capture", "Capture level (0–99)",
+                       0, 99, marks=(90,))
+        self.add_combo(glevel, None, "Mic Boost", "Mic boost",
+                       "Analogue preamp for the ACM microphone")
+        page.add(glevel)
+
+        gwu = Adw.PreferencesGroup(
+            title="Loopback",
+            description="The DSP output, recorded as a capture source")
+        self.add_switch(gwu, "What U Hear", "What U Hear",
+                        "Record what the card is playing")
+        self.add_scale(gwu, None, "What U Hear", "Loopback level (0–99)",
+                       0, 99, marks=(90,))
+        page.add(gwu)
+
         gfx = Adw.PreferencesGroup(
             title="CrystalVoice / input effects",
             description="Run in the DSP while a capture stream is active")
@@ -856,10 +888,10 @@ class Win(Adw.ApplicationWindow):
             "recording channels.")
         self.add_note(
             g2,
-            "Capture volume and mic boost stay under PipeWire/GNOME: the "
-            "simple mixer lookup returns an error while PipeWire owns the "
-            "capture device. Use GNOME's Sound panel, or "
-            "amixer -c Creative cset numid=9 90,90 for the capture level.")
+            "The Levels above are the card's hardware capture amp. PipeWire "
+            "and GNOME put their own software source volume on top; the "
+            "hardware level is the one that changes the analogue gain, and "
+            "Mic boost adds 10, 20 or 30 dB ahead of it.")
         page.add(g2)
 
     # ── handlers ──────────────────────────────────────────────────────────────
@@ -1077,7 +1109,7 @@ def selftest():
         "Input Source", "Enable InFX Capture Switch",
         "FX: Voice Focus Capture Switch", "FX: Noise Reduction Capture Switch",
         "FX: Mic SVM Capture Switch", "SVM Level Capture Volume",
-        "VoiceFX Capture Switch",
+        "VoiceFX Capture Switch", "Capture", "Mic Boost", "What U Hear",
     ]
     for n in names:
         try:

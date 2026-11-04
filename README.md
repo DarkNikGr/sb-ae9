@@ -247,6 +247,9 @@ Headphone output, effects off). The file header also carries a ready
 - What U Hear is the loopback of what the card is playing (tested with a 440 Hz tone at
   −26 dBFS); S/PDIF in (device 10) is exposed but untested. The ACM 48 V phantom command is
   not exposed yet (dynamic mics work).
+- Capture level and mic boost are the card's hardware amp (1 dB steps, 90 = 0 dB): `Capture`
+  in `amixer` or the *Capture* page of the GUI, plus `Mic Boost` (0/10/20/30 dB) for the
+  microphone. PipeWire/GNOME add their own software source volume on top.
 
 ### Effects (SBX)
 - Master switch: the SBX button, or `amixer -c Creative sset 'Enable OutFX' on|off`. The
