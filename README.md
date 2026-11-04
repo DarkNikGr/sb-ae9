@@ -317,13 +317,18 @@ Button events are logged as `AE-9 ACM: SBX button (146 ms) -> OutFX on`,
 ### S/PDIF loopback
 With an optical cable from the card's optical output to its optical input:
 ```
-tools/spdif-loopback-test.sh          # 44.1 / 48 / 88.2 / 96 / 192 kHz
-tools/spdif-loopback-test.sh --quick  # 48 kHz only
+tools/spdif-loopback-test.sh                # PipeWire adapters, 48 kHz
+tools/spdif-loopback-test.sh --raw          # raw ALSA, 44.1-192 kHz
+tools/spdif-loopback-test.sh --raw --quick  # raw ALSA, 48 kHz only
 ```
-It turns the S/PDIF switches on, finds the digital playback/capture pair, plays a
-1 kHz tone at each rate and reports the level, frequency and dropouts, then
-restores the switches. The DSP is in the path in both directions, so this checks
-the link and the rates, not bit-exactness.
+The default path uses the **"Sound Blaster AE-9 Optical S/PDIF"** output and the
+**"Sound Blaster AE-9 S/PDIF"** input, which is what the desktop uses; the
+adapters are fixed at 48 kHz. `--raw` drives the ALSA devices directly for the
+full rate matrix, but only works while PipeWire is not holding them (close the
+input monitor, or run it before login). The script turns the S/PDIF switches on,
+plays a 1 kHz tone, reports the level, frequency and dropouts, then restores the
+switches. The DSP is in the path in both directions, so this checks the link and
+the rates, not bit-exactness.
 
 For normal playback use the **"Sound Blaster AE-9 Optical S/PDIF"** output in
 GNOME/Audacity. It is the extra sink on playback device 10, the one wired to the
