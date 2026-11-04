@@ -27,6 +27,12 @@ for a in "$@"; do
 	esac
 done
 
+if [ "$QUICK" = 1 ]; then
+	RATES="48000"
+else
+	RATES="44100 48000 88200 96000 192000"
+fi
+
 for cmd in aplay arecord amixer python3; do
 	command -v "$cmd" >/dev/null 2>&1 || { echo "missing: $cmd"; exit 1; }
 done
@@ -173,17 +179,19 @@ if [ "$MODE" = pw ]; then
 	for cmd in pw-record pw-play; do
 		command -v "$cmd" >/dev/null 2>&1 || { echo "missing: $cmd"; exit 1; }
 	done
-	echo "mode: PipeWire adapters (48 kHz, fixed by 20-ae9-inputs.conf)"
+	echo "mode: PipeWire adapters (follows the stream rate)"
 	echo
 	printf '%-8s %-6s %-9s %-8s %-8s %s\n' RATE PEAK FREQ DROPOUT RATE_OK RESULT
-	tone 48000 "$TMP/tone.wav" 1.0
-	timeout 2 pw-record --target "$PW_SRC" --rate 48000 --channels 2 \
-		--format s32 "$TMP/cap.wav" >/dev/null 2>&1 &
-	sleep 0.4
-	pw-play --target "$PW_SINK" "$TMP/tone.wav" >/dev/null 2>&1
-	wait
-	set -- $(analyze "$TMP/cap.wav" 48000)
-	report 48000 "$1" "$2" "$3" "$4"
+	for rate in $RATES; do
+		tone "$rate" "$TMP/tone.wav" 1.0
+		timeout 2 pw-record --target "$PW_SRC" --rate "$rate" --channels 2 \
+			--format s32 "$TMP/cap.wav" >/dev/null 2>&1 &
+		sleep 0.4
+		pw-play --target "$PW_SINK" "$TMP/tone.wav" >/dev/null 2>&1
+		wait
+		set -- $(analyze "$TMP/cap.wav" "$rate")
+		report "$rate" "$1" "$2" "$3" "$4"
+	done
 else
 	play_devs=$(aplay -l 2>/dev/null |
 		sed -n 's/^card [0-9]*: .*device \([0-9]*\): CA0132 Digital.*/\1/p')
