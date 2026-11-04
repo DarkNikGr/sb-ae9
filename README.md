@@ -308,6 +308,17 @@ dmesg | grep 'AE-9 ACM'            # knob, button and keepalive log lines
 Button events are logged as `AE-9 ACM: SBX button (146 ms) -> OutFX on`,
 `knob press (158 ms) -> mute toggle`, `knob mid press (1744 ms) -> output toggle`.
 
+### S/PDIF loopback
+With an optical cable from the card's optical output to its optical input:
+```
+tools/spdif-loopback-test.sh          # 44.1 / 48 / 88.2 / 96 / 192 kHz
+tools/spdif-loopback-test.sh --quick  # 48 kHz only
+```
+It turns the S/PDIF switches on, finds the digital playback/capture pair, plays a
+1 kHz tone at each rate and reports the level, frequency and dropouts, then
+restores the switches. The DSP is in the path in both directions, so this checks
+the link and the rates, not bit-exactness.
+
 ### Module parameters
 `ae9_capture=1` + `ae9_mic=1` (set by `install/sb-ae9.conf`) create the main codec's capture
 stream (the ACM microphone) and initialise the DSP microphone path. Without `ae9_mic`, opening
@@ -438,7 +449,8 @@ from a card the maintainers do not own usually says exactly where it went wrong.
 - `patches/0001-…` — the HDA core fix as a standalone kernel patch (upstream candidate).
 - `patches/0002-…` — the codec changes as one diff against v7.0, for review.
 - `tools/ae9-firmware-extract.sh` — firmware segment extractor; `tools/collect-report.sh` — bug-report
-  collector; `tools/acm-tool/` — ACM/BAR2 diagnostics; `tools/ae9-fx` — the GTK 4 control panel.
+  collector; `tools/acm-tool/` — ACM/BAR2 diagnostics; `tools/ae9-fx` — the GTK 4 control panel;
+  `tools/spdif-loopback-test.sh` — optical S/PDIF self-test.
 - `install/` — modprobe drop-in (capture + mic init), session defaults + user service, post-resume unmute hook.
 - `docs/` — the investigation log, reverse-engineering notes for the ACM protocol and the
   Windows bring-up, and the decoded register captures the driver was derived from.
