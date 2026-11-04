@@ -45,17 +45,11 @@ fi
 
 echo "== 3/5 module options + WirePlumber/PipeWire rules =="
 install -m 644 "$SRC/install/sb-ae9.conf" /etc/modprobe.d/sb-ae9.conf
-if [ -d /usr/share/wireplumber/main.lua.d ]; then      # WirePlumber 0.4.x
-  for f in 51-ae9-soft-mixer; do
-    install -D -m 644 "$SRC/install/$f.lua" "$home/.config/wireplumber/main.lua.d/$f.lua"
-  done
-  chown -R "$usr:" "$home/.config/wireplumber"
-else                                                      # WirePlumber 0.5+
-  for f in 51-ae9-soft-mixer; do
-    install -D -m 644 "$SRC/install/$f.conf" "$home/.config/wireplumber/wireplumber.conf.d/$f.conf"
-  done
-  chown -R "$usr:" "$home/.config/wireplumber"
-fi
+# The AE-9 now exposes its hardware mixer as-is (soft-mixer=false, the
+# WirePlumber default); drop the old rule that forced soft-mixer=true.
+rm -f "$home/.config/wireplumber/main.lua.d/51-ae9-soft-mixer.lua" \
+      "$home/.config/wireplumber/wireplumber.conf.d/51-ae9-soft-mixer.conf" \
+      "$home/.config/wireplumber/wireplumber.conf.d/51-ae9-soft-mixer.conf.disabled"
 install -D -m 644 "$SRC/install/20-ae9-inputs.conf" "$home/.config/pipewire/pipewire.conf.d/20-ae9-inputs.conf"
 chown "$usr:" "$home/.config/pipewire/pipewire.conf.d/20-ae9-inputs.conf"
 

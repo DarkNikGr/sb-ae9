@@ -1,5 +1,5 @@
 [Unit]
-Description=Unmute the Sound Blaster AE-9 front playback switch after PipeWire starts
+Description=Unmute the Sound Blaster AE-9 shared output switch after PipeWire starts
 After=pipewire.service wireplumber.service pipewire-pulse.service
 PartOf=pipewire.service wireplumber.service pipewire-pulse.service
 StartLimitIntervalSec=0

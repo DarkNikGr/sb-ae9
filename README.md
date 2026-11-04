@@ -25,7 +25,7 @@ DAC trim and the 48 V phantom still needs a control; see the notes).
 | Area | Feature | Status |
 |---|---|---|
 | ACM | Headphone output through the ACM (ES9038Q2M) | **Working** |
-| ACM | Volume knob and dB display (Windows curve, −90 … 0 dB) | **Working** |
+| ACM | Volume knob and dB display (1 dB steps, −90 … 0 dB) | **Working** |
 | ACM | Mute (short knob press, `MUTE` on the display) | **Working** |
 | ACM | Output toggle (knob hold, `-HP-` / `-SP-`) | **Working**, and now exclusive (see below) |
 | ACM | SBX button and light (effects on/off) | **Working** |
@@ -50,9 +50,9 @@ DAC trim and the 48 V phantom still needs a control; see the notes).
   `ae9_capture=1 ae9_mic=1` is set by `install/sb-ae9.conf`.
 - **Input effects**: `Enable InFX` plus `FX: Voice Focus`, `FX: Noise Reduction` and
   `FX: Mic SVM` are live on the capture path (tested: ON was audibly louder and processed).
-- **Volume knob**: clockwise = up, two detents per point, Windows' 101-point loudness curve
-  (−90 … 0 dB). The ACM display shows the level in Windows' format (`-25.5`), `MUTE` while
-  muted, `-HP-` / `-SP-` when the output is switched.
+- **Volume knob**: clockwise = up, two detents per point, 1 dB steps from −90 dB to 0 dB.
+  The ACM display shows the effective level in dB (0.0 at the top), `MUTE` while muted,
+  `-HP-` / `-SP-` when the output is switched.
 - **Knob press**: short press (< 1.5 s) toggles mute; 1.5–3 s hold toggles the output
   (headphones ⇄ rear line-out); longer presses are ignored.
 - **Exclusive output switching**: `AE-9 Output` now writes the ES9038 front mute as well as the
@@ -67,13 +67,17 @@ DAC trim and the 48 V phantom still needs a control; see the notes).
 - **Effects**: off by default ("Direct Mode"-like clean path). When on, each SBX processor
   (Crystalizer, Dialog Plus, Smart Volume, X-Bass, Surround, Equalizer) has its own switch
   and level in the mixer — see *Effects* below.
-- **Master volume** on the hardware amp with the Windows curve; the DSP volume stage is fixed
-  at 0 dB, so the knob and `Master` are the only level control.
+- **Master volume** drives the hardware amp in 1 dB steps (0 dB at 90); the DSP volume stage is
+  fixed at 0 dB, so the knob and `Master` are the only level control. `Headphone+LO` is the
+  shared DAC volume/switch for both the ACM headphones and the rear line-out.
+- **Auto-detect**: `HP/Speaker Auto Detect` makes the output follow the ACM 3.5 mm jack. The
+  ACM firmware does not report the 6.35 mm jack, so switch the output by hand for it.
 - **Desktop integration**: the card comes up on its analog profile by itself, PipeWire's
-  default sink is the AE-9 at unity gain, and WirePlumber is kept off the hardware mixer.
+  default sink is the AE-9, and WirePlumber drives the hardware mixer
+  (`soft-mixer=false`, the default) through the shared `Headphone+LO` control.
 - **Suspend / resume**: the driver re-runs the AE-9 bring-up and the ACM comes back; the
-  installed `50-ae9-resume` system-sleep hook unmutes `Front` after WirePlumber's route
-  restore (which would otherwise leave the card silent with everything looking on).
+  installed `50-ae9-resume` system-sleep hook unmutes the shared output after WirePlumber's
+  route restore (which would otherwise leave the card silent with everything looking on).
 - **Stability**: the HDA-core posted-write fix (the stock kernel hard-locks on this card),
   the IOMMU requirement below, the codec held out of runtime suspend so the ACM stays alive,
   and serialized access to the card's DSP command engine.
@@ -173,8 +177,8 @@ sudo reboot
 ```
 `install.sh` adds the DKMS module set (`sb-ae9`), extracts and installs the firmware segment
 (`--no-firmware` skips that step if it is already in place), installs the modprobe drop-in,
-the WirePlumber rule, the `ae9-defaults` user service and the `50-ae9-resume` system-sleep
-hook, and warns about Secure Boot and `iommu=pt`. After the reboot the card comes up by itself.
+the `ae9-defaults` user service and the `50-ae9-resume` system-sleep hook, and warns about
+Secure Boot and `iommu=pt`. After the reboot the card comes up by itself. After the reboot the card comes up by itself.
 
 Check: `dmesg | grep 'AE-9'` should show `converter bring-up done` and
 `AE-9 ACM: present, firmware …, output headphone`, followed a few seconds later by
@@ -189,14 +193,15 @@ The examples address the card by its ALSA id, `-c Creative`, which does not chan
 boots (the numeric index can).
 
 ### Volume and mute
-- The ACM knob, or `amixer -c Creative sset Master <0-99>` (Windows curve; 18 ≈ −25 dB,
-  44 ≈ −12 dB, 99 = 0 dB). PipeWire's slider is software gain; keep it at 100 %.
+- The ACM knob, or `amixer -c Creative sset Master <0-90>` (1 dB steps; 65 ≈ −25 dB,
+  72 ≈ −18 dB, 90 = 0 dB). PipeWire's slider drives the same hardware Master, so it and the
+  knob are one control.
 - Mute: a short knob press, or `amixer -c Creative sset Master toggle`. The display shows `MUTE`.
-- The session defaults set Master to 18 at every login. To change that, override the service
+- The session defaults set Master to 65 at every login. To change that, override the service
   environment: `systemctl --user edit ae9-defaults`, then add
   ```
   [Service]
-  Environment=AE9_LEVEL=30
+  Environment=AE9_LEVEL=72
   ```
   (`AE9_OUT=Speakers` selects the rear line-out instead.)
 
@@ -262,8 +267,8 @@ boots (the numeric index can).
 ### Session defaults service
 `ae9-defaults` (user service, oneshot) runs at login: waits for the AE-9, selects its analog
 profile if WirePlumber did not, selects `AE-9 Output` = Headphone, turns effects off, sets
-PCM/Front/Surround to 100 % and Master to `AE9_LEVEL`, then makes the AE-9 analog sink
-PipeWire's default at unity and re-checks once after a late route restore.
+PCM/Headphone+LO/Surround to 100 % and Master to `AE9_LEVEL`, then makes the AE-9 analog sink
+PipeWire's default and re-checks the level/routing once after a late route restore.
 `systemctl --user restart --no-block ae9-defaults` re-applies everything (it takes up to
 ~45 s; `--no-block` returns at once). `journalctl --user -u ae9-defaults` shows what it did.
 
@@ -322,22 +327,22 @@ power supply off (or pull the plug), press the power button once to drain, wait 
 on.** Confirmed on the reference machine (silent for three days of boots, fixed by one drain).
 
 ### Silent after a PipeWire/WirePlumber restart
-WirePlumber's route restore can leave the ALSA **`Front Playback Switch`** off while the sink
-still reports a normal, unmuted volume. Check and fix it:
+WirePlumber's route restore can leave the ALSA **`Headphone+LO Playback Switch`** off while the
+sink still reports a normal, unmuted volume. Check and fix it:
 ```
 amixer -c Creative cget numid=$(amixer -c Creative controls |
-      sed -n "s/^numid=\([0-9]*\).*name='Front Playback Switch'/\1/p")
+      sed -n "s/^numid=\([0-9]*\).*name='Headphone+LO Playback Switch'/\1/p")
 amixer -c Creative cset numid=<id> on
 ```
 `install.sh` now installs `ae9-unmute.service` (a user unit, `WantedBy=pipewire.service`) which
 re-asserts that switch for a few seconds after the graph starts. If the card is quiet *and* the
 ACM knob drove `Master` down, raise it too (`amixer -c Creative cset numid=14 90`).
 
-After a resume, check `amixer -c Creative sget Front`: WirePlumber's route restore can leave
-the `Front` switch `[off]`, which silences the card even though `Master` is on and the stream
+After a resume, check `amixer -c Creative sget 'Headphone+LO'`: WirePlumber's route restore can
+leave that switch `[off]`, which silences the card even though `Master` is on and the stream
 runs. `install.sh` installs a `50-ae9-resume` system-sleep hook that unmutes it about 20 s
 after resume; `journalctl -b | grep ae9-resume` shows whether it ran. To fix it by hand:
-`amixer -c Creative sset Front on`.
+`amixer -c Creative sset 'Headphone+LO' on`.
 
 ### Diagnostics (`tools/acm-tool`)
 A throw-away kernel module that maps the card's BAR2 and talks to the ACM UART, the GPIO
@@ -406,7 +411,7 @@ from a card the maintainers do not own usually says exactly where it went wrong.
 - `patches/0002-…` — the codec changes as one diff against v7.0, for review.
 - `tools/ae9-firmware-extract.sh` — firmware segment extractor; `tools/collect-report.sh` — bug-report
   collector; `tools/acm-tool/` — ACM/BAR2 diagnostics.
-- `install/` — modprobe drop-in (capture + mic init), WirePlumber soft-mixer rule, session defaults + user service, post-resume unmute hook.
+- `install/` — modprobe drop-in (capture + mic init), session defaults + user service, post-resume unmute hook.
 - `docs/` — the investigation log, reverse-engineering notes for the ACM protocol and the
   Windows bring-up, and the decoded register captures the driver was derived from.
 

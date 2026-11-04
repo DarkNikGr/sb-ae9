@@ -226,7 +226,7 @@ Still open:
 - the SRC/DSP flags and `MASTERCONTROL 0x80/0x00` still follow the existing 96 kHz-era values (U2),
 - a true non-resampling PipeWire path: the GUI already manages the graph's allowed rates, but `pw-play --target` / `aplay -D hw:Creative,0` remain the only guaranteed bit-perfect routes.
 
-Also done in this pass: the analog PCM is constrained to 2 channels while Direct Mode is on (Windows' Direct Mode is a stereo path), and `install.sh` installs `ae9-unmute.service`, which re-asserts the `Front Playback Switch` after a PipeWire/WirePlumber restart.
+Also done in this pass: the analog PCM is constrained to 2 channels while Direct Mode is on (Windows' Direct Mode is a stereo path), and `install.sh` installs `ae9-unmute.service`, which re-asserts the `Headphone+LO Playback Switch` after a PipeWire/WirePlumber restart.
 
 **Exit:** the user listens at 44.1/48/…/192 without DSP intervention and sees the rate.
 

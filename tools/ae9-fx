@@ -338,8 +338,8 @@ def mixer_state():
 
 
 def restore_routing(ctl, route, master, outfx):
-    """Undo WirePlumber's route restore, which mutes Front and moves the knob."""
-    for c in ("PCM", "Front", "Surround"):
+    """Undo WirePlumber's route restore, which can mute the shared output."""
+    for c in ("PCM", "Headphone+LO", "Surround"):
         try:
             amixer("sset", c, "unmute")   # PCM is volume-only: no switch
         except RuntimeError:
@@ -594,14 +594,14 @@ class Win(Adw.ApplicationWindow):
         g2 = Adw.PreferencesGroup(title="Please note")
         self.add_note(
             g2,
-            "PipeWire's slider is software gain. Keep it at 100% and set the "
-            "level here — otherwise you lose resolution before the signal "
-            "reaches the DSP.")
+            "PipeWire's slider drives the same hardware Master (soft-mixer is "
+            "off), so the desktop slider, the knob and the ACM display all "
+            "show the same level.")
         self.add_note(
             g2,
-            "The ae9-defaults service puts Master back to 18 at every login. "
-            "For another default: systemctl --user edit ae9-defaults → "
-            "Environment=AE9_LEVEL=30")
+            "The ae9-defaults service puts Master back to 65 (-25 dB) at every "
+            "login. For another default: systemctl --user edit ae9-defaults → "
+            "Environment=AE9_LEVEL=72")
         page.add(g2)
 
         g3 = Adw.PreferencesGroup(title="Status")
@@ -738,8 +738,8 @@ class Win(Adw.ApplicationWindow):
         self.add_note(
             gr,
             "Audio stops for a few seconds. The AE-9 routing and level are "
-            "restored afterwards: WirePlumber's route restore can mute Front "
-            "and move the ACM knob.")
+            "restored afterwards: WirePlumber's route restore can mute the "
+            "shared output and move the ACM knob.")
         page.add(gr)
 
     def page_fx(self, page):
@@ -1067,7 +1067,8 @@ def selftest():
     """Check the parsers without opening a window."""
     print(f"card: {CARD}")
     names = [p[0] for p in PROCESSORS] + [
-        "Master", "AE-9 Output", "HP/Speaker Auto Detect", "Enable OutFX",
+        "Master", "Headphone+LO", "AE-9 Output", "HP/Speaker Auto Detect",
+        "Enable OutFX",
         "Surround Channel Config", "Full-Range Front Speakers",
         "Full-Range Rear Speakers", "Bass Redirection",
         "Bass Redirection Crossover", "AE-5: Sound Filter",
