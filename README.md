@@ -211,11 +211,11 @@ boots (the numeric index can).
 
 ### GUI (`tools/ae9-fx`)
 A GTK 4 / libadwaita app with a sidebar for **Volume** (Master, mute and the
-ACM selector status), **Output** (`AE-9 Output`, auto-detect, surround),
+ACM selector status), **Output** (`AE-9 Output`, auto-detect, surround, S/PDIF out/in),
 **Format** (running rate, PipeWire allowed rates, Direct Mode), **SBX** (effects,
 levels, 10-band EQ), **DAC** (oversampling filter, headphone gain) and
-**Capture** (ACM input, CrystalVoice and VoiceFX presets). It drives the same
-ALSA controls as `amixer` and needs no root.
+**Capture** (levels, mic boost, What U Hear, ACM input, CrystalVoice and VoiceFX
+presets). It drives the same ALSA controls as `amixer` and needs no root.
 
 Dependencies (Fedora): `python3-gobject gtk4 libadwaita`. Run it from the tree,
 or install it on `PATH`:

@@ -665,6 +665,22 @@ class Win(Adw.ApplicationWindow):
             "driver writes the amp bit and the ES9038 front mute instead.")
         page.add(g3)
 
+        g4 = Adw.PreferencesGroup(
+            title="S/PDIF (optical)",
+            description="Digital output and input on the card bracket "
+                        "(playback and capture device 10)")
+        self.add_switch(g4, "IEC958 Playback Switch", "S/PDIF output",
+                        "Send the digital output to the optical port")
+        self.add_switch(g4, "IEC958 Capture Switch", "S/PDIF input",
+                        "Receive the optical input as capture device 10")
+        self.add_note(
+            g4,
+            "Tested with an optical cable from the output back to the input "
+            "at 44.1 / 48 / 88.2 / 96 / 192 kHz. The DSP stays in the path, "
+            "so the loopback is clean but not sample-exact. 176.4 kHz is not "
+            "advertised by the digital converter.")
+        page.add(g4)
+
     def page_format(self, page):
         g = Adw.PreferencesGroup(title="Running")
         self.format_row = Adw.ActionRow(title="Format", subtitle="—")
@@ -1110,6 +1126,7 @@ def selftest():
         "FX: Voice Focus Capture Switch", "FX: Noise Reduction Capture Switch",
         "FX: Mic SVM Capture Switch", "SVM Level Capture Volume",
         "VoiceFX Capture Switch", "Capture", "Mic Boost", "What U Hear",
+        "IEC958 Playback Switch", "IEC958 Capture Switch",
     ]
     for n in names:
         try:
