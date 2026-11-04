@@ -330,10 +330,10 @@ def mixer_state():
         ctl = ("AE-9 Output" if "'AE-9 Output'" in amixer("scontrols")
                else "Output Select")
         route = read(ctl)["item"] or "Headphone"
-        master = read("Master")["value"] or 18
+        master = read("Master")["value"] or 65
         outfx = bool(read("Enable OutFX")["switch"])
     except RuntimeError:
-        return "AE-9 Output", "Headphone", 18, False
+        return "AE-9 Output", "Headphone", 65, False
     return ctl, route, master, outfx
 
 
@@ -402,7 +402,7 @@ PROCESSORS = [
 
 # The manufacturer's levels, for the reset button.
 DEFAULTS = {
-    "Master": 18,
+    "Master": 65,
     "AE-9 Output": "Headphone",
     "Enable OutFX": "on",
     "FX: Crystalizer": ("on", 65),
@@ -586,9 +586,9 @@ class Win(Adw.ApplicationWindow):
                         "On = sound, off = mute (a short press on the knob)")
 
         self.add_scale(
-            g, None, "Master", "Level (0–99)", 0, 99, marks=(18, 44, 99))
+            g, None, "Master", "Level (0–90)", 0, 90, marks=(65, 72, 90))
         g.add(Adw.ActionRow(
-            title="99 = 0 dB · 44 ≈ −12 dB · 18 ≈ −25 dB · default 18"))
+            title="90 = 0 dB · 72 ≈ −18 dB · 65 ≈ −25 dB · default 65"))
         page.add(g)
 
         g2 = Adw.PreferencesGroup(title="Please note")

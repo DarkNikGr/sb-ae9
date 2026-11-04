@@ -205,6 +205,26 @@ boots (the numeric index can).
   ```
   (`AE9_OUT=Speakers` selects the rear line-out instead.)
 
+### GUI (`tools/ae9-fx`)
+A GTK 4 / libadwaita app with a sidebar for **Volume** (Master, mute and the
+ACM selector status), **Output** (`AE-9 Output`, auto-detect, surround),
+**Format** (running rate, PipeWire allowed rates, Direct Mode), **SBX** (effects,
+levels, 10-band EQ), **DAC** (oversampling filter, headphone gain) and
+**Capture** (ACM input, CrystalVoice and VoiceFX presets). It drives the same
+ALSA controls as `amixer` and needs no root.
+
+Dependencies (Fedora): `python3-gobject gtk4 libadwaita`. Run it from the tree,
+or install it on `PATH`:
+```
+install -Dm755 tools/ae9-fx ~/.local/bin/ae9-fx
+ae9-fx
+```
+`ae9-fx --selftest` prints every control it reads without opening a window —
+the quickest way to tell a GUI bug from a driver state. The header has
+*reload* (re-read the card) and *reset* (manufacturer defaults: Master 65,
+Headphone output, effects off). The file header also carries a ready
+`~/.local/share/applications/ae9-fx.desktop` snippet for the application grid.
+
 ### Output
 - `amixer -c Creative sset 'AE-9 Output' Headphone|Speakers`, or hold the knob 1.5–3 s.
 - The two positions are exclusive: Headphone writes the ES9038 front mute (reg 0x1d) so the
@@ -411,7 +431,7 @@ from a card the maintainers do not own usually says exactly where it went wrong.
 - `patches/0001-…` — the HDA core fix as a standalone kernel patch (upstream candidate).
 - `patches/0002-…` — the codec changes as one diff against v7.0, for review.
 - `tools/ae9-firmware-extract.sh` — firmware segment extractor; `tools/collect-report.sh` — bug-report
-  collector; `tools/acm-tool/` — ACM/BAR2 diagnostics.
+  collector; `tools/acm-tool/` — ACM/BAR2 diagnostics; `tools/ae9-fx` — the GTK 4 control panel.
 - `install/` — modprobe drop-in (capture + mic init), session defaults + user service, post-resume unmute hook.
 - `docs/` — the investigation log, reverse-engineering notes for the ACM protocol and the
   Windows bring-up, and the decoded register captures the driver was derived from.
