@@ -1206,6 +1206,8 @@ struct ca0132_spec {
 	int ae9_knob_dir;		/* last encoder direction seen (Windows: board+0x288) */
 	bool ae9_dsp_vol_zeroed;	/* DSP output volume parked at 0 dB (curve lives on the amp) */
 	bool ae9_acm_regs_logged;	/* first periodic ACM register check logged */
+	bool ae9_acm_knob_tx_failed;	/* knob query TX broke: stop until reload */
+	bool ae9_acm_button_tx_failed;	/* button query TX broke: stop until reload */
 	int ae9_acm_dead_ticks;		/* consecutive keepalive probes unanswered */
 	int ae9_acm_sel;		/* module's own output selector bits last seen (items 5/6) */
 
@@ -9497,6 +9499,83 @@ static void ae9_acm_tx(struct ca0132_spec *spec, const u8 *p, int n)
 	}
 }
 
+/*
+ * Bounded TX for the periodic knob/button queries.  The generic ae9_acm_tx()
+ * keeps the maintenance/display frames on the slow LSR path; the knob and
+ * button queries use Creative's DWORD status bit 1 (TX ready), which is what
+ * Windows polls.  A broken TX must never resend a partial sysex frame, so the
+ * query is stopped until the module is reloaded.
+ *
+ * Based on s3boun3t/ae9_build (knobtx1/buttontx1).
+ */
+static bool ae9_acm_knob_tx(struct ca0132_spec *spec, const u8 *p, int n)
+{
+	void __iomem *b2 = spec->mem_base;
+	u32 status = 0;
+	int i, w;
+
+	if (ca0132_quirk(spec) != QUIRK_AE9 || spec->ae9_acm_knob_tx_failed)
+		return false;
+	for (i = 0; i < 64 && (readb(b2 + AE9_U_LSR) & 0x01); i++)
+		(void)readb(b2 + AE9_U_RBR);
+	for (i = 0; i < n; i++) {
+		for (w = 0; w < 100; w++) {
+			status = readl(b2 + AE9_U_STS);
+			if (status == ~0U)
+				goto failed;
+			if (status & 0x02)
+				break;
+			usleep_range(50, 100);
+		}
+		if (w == 100)
+			goto failed;
+		writeb(p[i], b2 + AE9_U_THR);
+		readb(b2 + AE9_U_LCR);
+	}
+	return true;
+
+failed:
+	spec->ae9_acm_knob_tx_failed = true;
+	codec_warn(spec->codec,
+		   "AE-9 ACM knob TX: FAILED sent=%d/%d status=%08x; knob polling stopped until reload\n",
+		   i, n, status);
+	return false;
+}
+
+static bool ae9_acm_button_tx(struct ca0132_spec *spec, const u8 *p, int n)
+{
+	void __iomem *b2 = spec->mem_base;
+	u32 status = 0;
+	int i, w;
+
+	if (ca0132_quirk(spec) != QUIRK_AE9 || spec->ae9_acm_button_tx_failed)
+		return false;
+	for (i = 0; i < 64 && (readb(b2 + AE9_U_LSR) & 0x01); i++)
+		(void)readb(b2 + AE9_U_RBR);
+	for (i = 0; i < n; i++) {
+		for (w = 0; w < 100; w++) {
+			status = readl(b2 + AE9_U_STS);
+			if (status == ~0U)
+				goto failed;
+			if (status & 0x02)
+				break;
+			usleep_range(50, 100);
+		}
+		if (w == 100)
+			goto failed;
+		writeb(p[i], b2 + AE9_U_THR);
+		readb(b2 + AE9_U_LCR);
+	}
+	return true;
+
+failed:
+	spec->ae9_acm_button_tx_failed = true;
+	codec_warn(spec->codec,
+		   "AE-9 ACM button TX: FAILED sent=%d/%d status=%08x; button polling stopped until reload\n",
+		   i, n, status);
+	return false;
+}
+
 static int ae9_acm_rx(struct ca0132_spec *spec, u8 *buf, int max, int first_wait_ms)
 {
 	void __iomem *b2 = spec->mem_base;
@@ -9675,7 +9754,8 @@ static int ae9_acm_button(struct ca0132_spec *spec, int n)
 	u8 rx[8];
 	int got;
 
-	ae9_acm_tx(spec, q, sizeof(q));
+	if (!ae9_acm_button_tx(spec, q, sizeof(q)))
+		return 0;
 	got = ae9_acm_rx(spec, rx, sizeof(rx), 30);
 	if (got < 5 || rx[0] != 0xf0 || rx[3] != n || rx[4] != 1)
 		return 0;
@@ -9933,7 +10013,8 @@ static void ae9_acm_knob(struct hda_codec *codec)
 	int n, dir, steps, delta;
 	long v;
 
-	ae9_acm_tx(spec, q, sizeof(q));
+	if (!ae9_acm_knob_tx(spec, q, sizeof(q)))
+		return;
 	n = ae9_acm_rx(spec, rx, 8, 30);
 	if (n < 5 || rx[0] != 0xf0)
 		return;
