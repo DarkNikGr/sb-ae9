@@ -332,11 +332,12 @@ the rates, not bit-exactness.
 
 For normal playback use the **"Sound Blaster AE-9 Optical S/PDIF"** output in
 GNOME/Audacity. It is the extra sink on playback device 10, the one wired to the
-optical port. The ACP profile's **"Sound Blaster AE-9 S/PDIF (internal)"** sink
-uses the other digital PCM (device 1) and is silent at the optical port on this
-card; it is kept only because it comes with the card profile. The matching input
-is **"Sound Blaster AE-9 S/PDIF"** (capture device 10). Both switches are turned
-on by `ae9-defaults`.
+optical port. The card's ACP digital profile is not offered at all:
+`install/ae9-profiles.conf` plus the udev rule `90-sb-ae9-profile.rules` make
+PipeWire load an analog-only profile set, because the ACP iec958 mapping uses
+PCM device 1, which is not wired to the optical port on this card. The matching
+input is **"Sound Blaster AE-9 S/PDIF"** (capture device 10). Both switches are
+turned on by `ae9-defaults`.
 
 ### Module parameters
 `ae9_capture=1` + `ae9_mic=1` (set by `install/sb-ae9.conf`) create the main codec's capture
@@ -470,7 +471,8 @@ from a card the maintainers do not own usually says exactly where it went wrong.
 - `tools/ae9-firmware-extract.sh` — firmware segment extractor; `tools/collect-report.sh` — bug-report
   collector; `tools/acm-tool/` — ACM/BAR2 diagnostics; `tools/ae9-fx` — the GTK 4 control panel;
   `tools/spdif-loopback-test.sh` — optical S/PDIF self-test.
-- `install/` — modprobe drop-in (capture + mic init), session defaults + user service, post-resume unmute hook.
+- `install/` — modprobe drop-in (capture + mic init), PipeWire source/name rules, the analog-only
+  ALSA profile set + udev rule, session defaults + user service, post-resume unmute hook.
 - `docs/` — the investigation log, reverse-engineering notes for the ACM protocol and the
   Windows bring-up, and the decoded register captures the driver was derived from.
 

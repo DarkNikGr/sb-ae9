@@ -679,9 +679,9 @@ class Win(Adw.ApplicationWindow):
             "at 44.1 / 48 / 88.2 / 96 / 192 kHz. The DSP stays in the path, "
             "so the loopback is clean but not sample-exact. 176.4 kHz is not "
             "advertised by the digital converter. For playback pick the "
-            "'Sound Blaster AE-9 Optical S/PDIF' sink; the '(internal)' one "
-            "is not wired to the optical port. The input is the "
-            "'Sound Blaster AE-9 S/PDIF' PipeWire source.")
+            "'Sound Blaster AE-9 Optical S/PDIF' sink; the card's ACP digital "
+            "profile is disabled because it uses the other PCM. The input is "
+            "the 'Sound Blaster AE-9 S/PDIF' PipeWire source.")
         page.add(g4)
 
     def page_format(self, page):
