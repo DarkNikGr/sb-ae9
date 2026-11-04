@@ -420,7 +420,30 @@ The Windows driver's register traffic to the card was captured and replayed: DSP
 sequence, ASI/PLL and DAC configuration, the output-connect patch, the ACM UART protocol
 (sysex-style frames at 115200 baud over a 16550 in BAR2), the encoder acceleration and the
 volume table. Details in `docs/`. Prior art: the `ae9_build` project documented the card and
-the Windows registry; this work started where it stopped (the DSP output stayed silent).
+the Windows registry; this work started where it stopped (the DSP output stayed silent). The
+driver changes later ported from that project are listed under *Credits*.
+
+## Credits
+
+Most of the driver work in this branch was authored and tested on the same AE-9
+hardware by **s3boun3t**, and is ported from
+[`s3boun3t/ae9_build`](https://github.com/s3boun3t/ae9_build) (that project
+imports this driver at `f33f44c` and is GPL-2.0 as well):
+
+| Upstream commit | Change |
+|---|---|
+| `c06d416` | scope the HDA-core posted-write readbacks to the AE-9 |
+| `fb4a88a`, `ebf33df` | bound the knob / button UART queries |
+| `9925425` | auto-switch the output on the ACM headphone jack |
+| `1343ebc` | shared `Headphone+LO` volume/switch for headphones and line-out |
+| `da1e462` | align the hardware gain and the ACM volume display |
+| `bb23212` | refresh the ACM display on mixer changes |
+
+This tree adapts the ports to its own packaging: the auto-detect switch now
+gates the jack switching, and the install scripts, GUI and README use the
+shared `Headphone+LO` control.  Reviewed but deliberately not taken:
+`aef878a` (XanMod-specific multiout ABI) and `0b2ce68` (enable mic/capture by
+default; kept opt-in for safety).
 
 ## License
 GPL-2.0 (derived from the Linux kernel). Creative's firmware and driver binaries are not
