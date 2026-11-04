@@ -32,17 +32,26 @@ for o in d:
         print(o["id"]); break' 2>/dev/null; }
 default_source() { pw-metadata -n default 2>/dev/null |
   sed -n "s/.*key:'default.audio.source' value:'{\"name\":\"\([^\"]*\)\"}'.*/\1/p" | tail -1; }
+configured_source() { pw-metadata -n default 2>/dev/null |
+  sed -n "s/.*key:'default.configured.audio.source' value:'{\"name\":\"\([^\"]*\)\"}'.*/\1/p" | tail -1; }
+node_name() { wpctl inspect "$1" 2>/dev/null |
+  sed -n 's/.*node.name = "\(.*\)"/\1/p' | head -1; }
+set_configured() { # key name
+  [ -n "${2:-}" ] && pw-metadata -n default 0 "default.configured.$1" \
+    "{\"name\":\"$2\"}" >/dev/null 2>&1
+}
 # The extra sources (Line In, What U Hear, S/PDIF) must never become the default
 # microphone.  WirePlumber does that when the profile change removes the analog
 # source, and the choice is persisted, so put the AE-9 analog input back.
 fix_default_source() {
-  local cur id; cur=$(default_source)
-  case "${cur:-}" in
-    alsa_input.ae9_*)
+  local cur conf id; cur=$(default_source); conf=$(configured_source)
+  case "${cur:-}:${conf:-}" in
+    *alsa_input.ae9_*)
       id=$(find_source)
       if [ -n "${id:-}" ]; then
         wpctl set-default "$id" 2>/dev/null &&
-          echo "ae9-defaults: default source was '$cur' -> AE-9 analog source $id"
+          echo "ae9-defaults: default source '${cur:-}/$conf' -> AE-9 analog source $id"
+        set_configured audio.source "$(node_name "$id")"
       fi
       ;;
   esac
@@ -93,7 +102,11 @@ ID=""; for i in $(seq 1 40); do ID=$(find_sink); [ -n "$ID" ] && break; sleep 0.
 # 3. routing + levels
 apply_routing
 # 4. PipeWire default sink (leave its volume: it maps to the same hardware Master)
-if [ -n "$ID" ]; then wpctl set-default "$ID" 2>/dev/null; echo "ae9-defaults: PipeWire default sink = $ID"; fi
+if [ -n "$ID" ]; then
+  wpctl set-default "$ID" 2>/dev/null
+  set_configured audio.sink "$(node_name "$ID")"
+  echo "ae9-defaults: PipeWire default sink = $ID"
+fi
 # 5. WirePlumber can restore the saved sink volume/routing late; re-assert both
 sleep 10
 [ "$(current_out)" != "$OUT" ] && echo "ae9-defaults: routing was changed to '$(current_out)' after we set it; re-applying"
