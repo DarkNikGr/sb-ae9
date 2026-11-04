@@ -1,7 +1,7 @@
 # Sound Blaster AE-9 Linux driver — Audio Control Module, SBX effects, PipeWire
 
-**Sound Blaster AE-9 Linux support: 81 % of the card's features, 100 % of the Audio Control
-Module's** (support matrix below). Working today on the physical card and ACM: headphone
+**Sound Blaster AE-9 Linux support: all 16 rows of the matrix below, including 100 % of the
+Audio Control Module's** (the analog amp stage and the 48 V phantom still have notes). Working today on the physical card and ACM: headphone
 output through the Audio Control Module, ACM microphone/line input, ACM volume knob and dB
 display, mute and output toggle from the knob, exclusive headphone/line-out switching, SBX
 button and light, SBX effects and input effects with per-effect controls, PipeWire and
@@ -18,7 +18,7 @@ playback under PipeWire, no issues so far. Read *Known issues*
 and *Hazards* before installing. This is not (yet) upstream; the plan is to get it there.
 
 ## Support matrix
-Each row weighs the same; *untested* counts as unsupported. Overall **13 of 16 rows = 81 %**,
+Each row weighs the same; *untested* counts as unsupported. Overall **16 of 16 rows = 100 %**,
 Audio Control Module **7 of 7 = 100 %** (the analog amp stage is exposed as a three-step digital
 DAC trim and the 48 V phantom still needs a control; see the notes).
 
@@ -34,9 +34,9 @@ DAC trim and the 48 V phantom still needs a control; see the notes).
 | Card | Playback under PipeWire, boot defaults, default sink | **Working** (44.1 / 48 / 88.2 / 96 kHz; 192 kHz with Direct Mode) |
 | Card | SBX effects: master switch and per-effect switches/levels | **Working** |
 | Card | Rear line-out (SABRE9006) | **Working** on the Fedora/alsa-firmware card; silent on the maintainer's card; `AE-9 Output` now switches exclusively |
-| Card | Optical S/PDIF out | Untested |
+| Card | Optical S/PDIF out | **Working**: tested at 44.1 / 48 / 88.2 / 96 / 192 kHz through an optical loopback into the card's own S/PDIF in |
 | Card | Rear line-in / mic-in | **Working**: ACM mic on capture device 0, rear line-in on device 4, What U Hear loopback on device 2 |
-| Card | Optical S/PDIF in | Untested (exposed as capture device 10) |
+| Card | Optical S/PDIF in | **Working**: capture device 10; 8 s at 192 kHz through the loopback without dropouts, received channel status matches the transmitter |
 | Card | Mic effects (CrystalVoice) | **Working**: `Enable InFX` + Voice Focus / Noise Reduction / Mic SVM (ON was audibly louder and processed) |
 | Card | Direct Mode / rate following | **Working** at 44.1 / 48 / 88.2 / 96 / 192 kHz with `ae9_direct=1` or the `AE-9 Direct Mode` control; the DSP stays in the path. 176.4 / 384 kHz not supported (384 kHz was tested: the HDA link does not honor the 8× rate) |
 | Card | Suspend / resume | **Working** (post-resume unmute hook included) |
@@ -102,14 +102,18 @@ DAC trim and the 48 V phantom still needs a control; see the notes).
 - Effects run at Creative's stock levels, not your Windows SBX profile; there is no import.
 - Direct Mode follows the stream's native rate up to 192 kHz (`ae9_direct=1` or the
   `AE-9 Direct Mode` control). It re-clocks the DSP/I2S chain, but the DSP remains in the path,
-  so bit-exactness is not proven end to end. 176.4 kHz has no working descriptor on this card.
+  so bit-exactness is not proven end to end. An optical S/PDIF loopback (out → in, 2026-11-05)
+  returns the samples with about −0.24 dB gain and a −67 dBFS residual, identical with Direct
+  Mode on and off; the DSP sits in both directions, so this neither proves nor disproves
+  bit-exactness of the output path. 176.4 kHz has no working descriptor on this card.
   384 kHz was tested (2026-11-03): the controller accepts `SDxFMT=0x3831`, but the HDA link
   does not carry the 8× rate — the DMA advances at 48k frames/s — so playback cannot run at
   384 kHz. The card stays at 192 kHz maximum.
-- Capture works for the ACM microphone, the rear line-in and the What U Hear loopback;
-  S/PDIF in is exposed but untested, and the ACM 48 V phantom command is not exposed yet.
-  S/PDIF out remains untested; suspend/resume works with the post-resume hook installed by
-  `install.sh`.
+- Capture works for the ACM microphone, the rear line-in and the What U Hear loopback.
+  S/PDIF works in both directions: playback device 10 drives the optical output and capture
+  device 10 receives it (44.1 / 48 / 88.2 / 96 / 192 kHz; 176.4 kHz is not advertised by the
+  digital converter). The ACM 48 V phantom command is not exposed yet; suspend/resume works
+  with the post-resume hook installed by `install.sh`.
 
 ## Hazards — read first
 1. **Never load an unpatched HDA stack against this card.** The stock kernel's HDA core
@@ -129,8 +133,8 @@ DAC trim and the 48 V phantom still needs a control; see the notes).
    (2026-09: Discord fell back to "Default" input after a USB microphone was unplugged). The
    shipped `install/sb-ae9.conf` sets both. With them, the ACM microphone (capture device 0),
    the rear line-in (device 4) and the What U Hear loopback (device 2) were tested on the
-   Fedora card; S/PDIF in is exposed but untested. Setting `ae9_capture=0` removes the main
-   codec's capture streams.
+   Fedora card; S/PDIF in (device 10) was tested with an optical loopback. Setting
+   `ae9_capture=0` removes the main codec's capture streams.
 5. **Do not use the diagnostic `tools/acm-tool` while the driver's ACM service is running**
    (UART collision), and never run its `acm=1/2` bring-up on a live card: the GPIO pulse
    resets both DACs. `acm=3` is the UART-only mode. See *Diagnostics*.
@@ -245,8 +249,8 @@ Headphone output, effects off). The file header also carries a ready
   AE-9 source over the generic `default` entry, which can advertise a bogus 128-channel
   maximum; set 1 or 2 recording channels.
 - What U Hear is the loopback of what the card is playing (tested with a 440 Hz tone at
-  −26 dBFS); S/PDIF in (device 10) is exposed but untested. The ACM 48 V phantom command is
-  not exposed yet (dynamic mics work).
+  −26 dBFS); S/PDIF in (device 10) works and was tested with an optical loopback at
+  44.1–192 kHz. The ACM 48 V phantom command is not exposed yet (dynamic mics work).
 - Capture level and mic boost are the card's hardware amp (1 dB steps, 90 = 0 dB): `Capture`
   in `amixer` or the *Capture* page of the GUI, plus `Mic Boost` (0/10/20/30 dB) for the
   microphone. PipeWire/GNOME add their own software source volume on top.
