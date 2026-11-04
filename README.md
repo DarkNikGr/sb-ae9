@@ -325,6 +325,14 @@ It turns the S/PDIF switches on, finds the digital playback/capture pair, plays 
 restores the switches. The DSP is in the path in both directions, so this checks
 the link and the rates, not bit-exactness.
 
+For normal playback use the **"Sound Blaster AE-9 Optical S/PDIF"** output in
+GNOME/Audacity. It is the extra sink on playback device 10, the one wired to the
+optical port. The ACP profile's **"Sound Blaster AE-9 S/PDIF (internal)"** sink
+uses the other digital PCM (device 1) and is silent at the optical port on this
+card; it is kept only because it comes with the card profile. The matching input
+is **"Sound Blaster AE-9 S/PDIF"** (capture device 10). Both switches are turned
+on by `ae9-defaults`.
+
 ### Module parameters
 `ae9_capture=1` + `ae9_mic=1` (set by `install/sb-ae9.conf`) create the main codec's capture
 stream (the ACM microphone) and initialise the DSP microphone path. Without `ae9_mic`, opening

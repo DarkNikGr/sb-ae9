@@ -62,9 +62,12 @@ apply_routing() {
   amixer -c"$CARD" sset 'Enable OutFX' off >/dev/null 2>&1
   for c in PCM 'Headphone+LO' Surround; do amixer -c"$CARD" sset "$c" unmute >/dev/null 2>&1; amixer -c"$CARD" sset "$c" 100% >/dev/null 2>&1; done
   amixer -c"$CARD" sset Master unmute >/dev/null 2>&1; amixer -c"$CARD" sset Master "$LEVEL" >/dev/null 2>&1
-  # The optical S/PDIF input has no simple-mixer alias; the extra PipeWire
-  # source (hw:Creative,10) is silent until this switch is on.
+  # The optical S/PDIF switches have no simple-mixer aliases; the extra
+  # PipeWire sink/source (hw:Creative,10) are silent until they are on.
   local spdif; spdif=$(amixer -c"$CARD" controls 2>/dev/null |
+    sed -n "s/^numid=\([0-9]*\).*name='IEC958 Playback Switch'.*/\1/p" | head -1)
+  [ -n "$spdif" ] && amixer -c"$CARD" cset numid="$spdif" on >/dev/null 2>&1
+  spdif=$(amixer -c"$CARD" controls 2>/dev/null |
     sed -n "s/^numid=\([0-9]*\).*name='IEC958 Capture Switch'.*/\1/p" | head -1)
   [ -n "$spdif" ] && amixer -c"$CARD" cset numid="$spdif" on >/dev/null 2>&1
   echo "ae9-defaults: card $CARD -> $ctl=$OUT, OutFX off, Master $LEVEL"
