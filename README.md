@@ -577,6 +577,10 @@ it over, and attach the file.
 
 ## Credits
 
+The original driver project this tree is based on is
+**[`verzic/sb-ae9`](https://github.com/verzic/sb-ae9)** — the out-of-tree AE-9
+driver, its HDA-core fix and the initial packaging.
+
 The AE-9 changes in this branch were authored and tested on the same hardware by
 **s3boun3t** and are ported from
 [`s3boun3t/ae9_build`](https://github.com/s3boun3t/ae9_build) (GPL-2.0):
