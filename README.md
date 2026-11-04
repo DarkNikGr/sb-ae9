@@ -244,10 +244,12 @@ Headphone output, effects off). The file header also carries a ready
 - Rear line-in (secondary codec): `arecord -D hw:Creative,4 -f S32_LE -r 48000 -c 2 -d 5 line.wav`
 - What U Hear (DSP loopback of playback): `arecord -D hw:Creative,2 -f S32_LE -r 48000 -c 2 -d 5 loop.wav`
 - Under PipeWire the ACM mic is the default source. `install/20-ae9-inputs.conf` also exposes
-  **"Sound Blaster AE-9 Line In"** (device 4) and **"Sound Blaster AE-9 What U Hear"**
-  (device 2) as separate sources; select them in Audacity/OBS/GNOME. In Audacity, prefer the
-  AE-9 source over the generic `default` entry, which can advertise a bogus 128-channel
-  maximum; set 1 or 2 recording channels.
+  **"Sound Blaster AE-9 Line In"** (device 4), **"Sound Blaster AE-9 What U Hear"** (device 2)
+  and **"Sound Blaster AE-9 S/PDIF"** (device 10) as separate sources; select them in
+  Audacity/OBS/GNOME. The S/PDIF source is silent until the optical input switch is on;
+  `ae9-defaults` turns it on at login, and the GUI's Output page has the same switch.
+  In Audacity, prefer the AE-9 source over the generic `default` entry, which can advertise a
+  bogus 128-channel maximum; set 1 or 2 recording channels.
 - What U Hear is the loopback of what the card is playing (tested with a 440 Hz tone at
   −26 dBFS); S/PDIF in (device 10) works and was tested with an optical loopback at
   44.1–192 kHz. The ACM 48 V phantom command is not exposed yet (dynamic mics work).
@@ -295,7 +297,9 @@ Headphone output, effects off). The file header also carries a ready
 `ae9-defaults` (user service, oneshot) runs at login: waits for the AE-9, selects its analog
 profile if WirePlumber did not, selects `AE-9 Output` = Headphone, turns effects off, sets
 PCM/Headphone+LO/Surround to 100 % and Master to `AE9_LEVEL`, then makes the AE-9 analog sink
-PipeWire's default and re-checks the level/routing once after a late route restore.
+PipeWire's default and re-checks the level/routing once after a late route restore. It also
+switches the optical S/PDIF input on and, if a profile change left one of the extra AE-9
+sources as the default microphone, restores the analog mic as the default.
 `systemctl --user restart --no-block ae9-defaults` re-applies everything (it takes up to
 ~45 s; `--no-block` returns at once). `journalctl --user -u ae9-defaults` shows what it did.
 

@@ -21,12 +21,43 @@ for o in d:
     if p.get("media.class")=="Audio/Sink" and p.get("device.id") in devs and "analog" in p.get("node.name","") and "iec958" not in p.get("node.name",""):
         print(o["id"]); break' 2>/dev/null; }
 route_ctl() { amixer -c"$1" scontrols 2>/dev/null | grep -q "'AE-9 Output'" && echo "AE-9 Output" || echo "Output Select"; }
+find_source() { pw-dump 2>/dev/null | python3 -c '
+import json,sys
+try: d=json.load(sys.stdin)
+except Exception: d=[]
+devs={o["id"] for o in d if o.get("info",{}).get("props",{}).get("device.vendor.id")=="0x1102" and o["info"]["props"].get("device.product.id")=="0x0010"}
+for o in d:
+    p=o.get("info",{}).get("props",{})
+    if p.get("media.class")=="Audio/Source" and p.get("device.id") in devs and "analog" in p.get("node.name",""):
+        print(o["id"]); break' 2>/dev/null; }
+default_source() { pw-metadata -n default 2>/dev/null |
+  sed -n "s/.*key:'default.audio.source' value:'{\"name\":\"\([^\"]*\)\"}'.*/\1/p" | tail -1; }
+# The extra sources (Line In, What U Hear, S/PDIF) must never become the default
+# microphone.  WirePlumber does that when the profile change removes the analog
+# source, and the choice is persisted, so put the AE-9 analog input back.
+fix_default_source() {
+  local cur id; cur=$(default_source)
+  case "${cur:-}" in
+    alsa_input.ae9_*)
+      id=$(find_source)
+      if [ -n "${id:-}" ]; then
+        wpctl set-default "$id" 2>/dev/null &&
+          echo "ae9-defaults: default source was '$cur' -> AE-9 analog source $id"
+      fi
+      ;;
+  esac
+}
 apply_routing() {
   local ctl; ctl=$(route_ctl "$CARD")
   amixer -c"$CARD" sset "$ctl" "$OUT" >/dev/null 2>&1
   amixer -c"$CARD" sset 'Enable OutFX' off >/dev/null 2>&1
   for c in PCM 'Headphone+LO' Surround; do amixer -c"$CARD" sset "$c" unmute >/dev/null 2>&1; amixer -c"$CARD" sset "$c" 100% >/dev/null 2>&1; done
   amixer -c"$CARD" sset Master unmute >/dev/null 2>&1; amixer -c"$CARD" sset Master "$LEVEL" >/dev/null 2>&1
+  # The optical S/PDIF input has no simple-mixer alias; the extra PipeWire
+  # source (hw:Creative,10) is silent until this switch is on.
+  local spdif; spdif=$(amixer -c"$CARD" controls 2>/dev/null |
+    sed -n "s/^numid=\([0-9]*\).*name='IEC958 Capture Switch'.*/\1/p" | head -1)
+  [ -n "$spdif" ] && amixer -c"$CARD" cset numid="$spdif" on >/dev/null 2>&1
   echo "ae9-defaults: card $CARD -> $ctl=$OUT, OutFX off, Master $LEVEL"
 }
 current_out() { amixer -c"$CARD" sget "$(route_ctl "$CARD")" 2>/dev/null | sed -n "s/.*Item0: '\(.*\)'/\1/p"; }
@@ -67,3 +98,4 @@ if [ -n "$ID" ]; then wpctl set-default "$ID" 2>/dev/null; echo "ae9-defaults: P
 sleep 10
 [ "$(current_out)" != "$OUT" ] && echo "ae9-defaults: routing was changed to '$(current_out)' after we set it; re-applying"
 apply_routing
+fix_default_source

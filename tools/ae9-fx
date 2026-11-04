@@ -678,7 +678,8 @@ class Win(Adw.ApplicationWindow):
             "Tested with an optical cable from the output back to the input "
             "at 44.1 / 48 / 88.2 / 96 / 192 kHz. The DSP stays in the path, "
             "so the loopback is clean but not sample-exact. 176.4 kHz is not "
-            "advertised by the digital converter.")
+            "advertised by the digital converter. The input also appears as "
+            "the 'Sound Blaster AE-9 S/PDIF' PipeWire source.")
         page.add(g4)
 
     def page_format(self, page):
