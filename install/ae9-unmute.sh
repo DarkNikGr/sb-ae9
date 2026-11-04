@@ -10,6 +10,10 @@
 # Installed by install.sh as /usr/local/libexec/sb-ae9/ae9-unmute.sh and run
 # from the user unit ae9-unmute.service (WantedBy=pipewire.service).
 
+# A PipeWire restart stops this unit while the loop below is sleeping.  Exit 0
+# on that signal so the journal does not report a failed service.
+trap 'exit 0' TERM INT
+
 for d in /proc/asound/card*/; do
 	[ -r "$d/codec#1" ] || continue
 	grep -qs 'Sound Blaster AE-9' "$d/codec#1" || continue

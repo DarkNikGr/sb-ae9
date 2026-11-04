@@ -6,6 +6,8 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot
+KillMode=mixed
+SuccessExitStatus=SIGTERM
 ExecStart=/usr/local/libexec/sb-ae9/ae9-unmute.sh
 
 [Install]
