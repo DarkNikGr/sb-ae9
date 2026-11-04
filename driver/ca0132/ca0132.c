@@ -5067,13 +5067,24 @@ static int __ca0132_alt_select_out(struct hda_codec *codec)
 	 * hp/speaker auto detect is enabled.
 	 */
 	if (auto_jack) {
-		jack_present = snd_hda_jack_detect(codec, spec->unsol_tag_hp) ||
-			   snd_hda_jack_detect(codec, spec->unsol_tag_front_hp);
+		if (ca0132_quirk(spec) == QUIRK_AE9) {
+			/* AE-9: the physical jacks are on the ACM and the codec
+			 * pins are pinned to NO_PRESENCE, so use the ACM sample.
+			 * Until the first sample, keep the current selection. */
+			if (spec->ae9_hp_jack_valid)
+				spec->cur_out_type = spec->ae9_hp_jack_present ?
+						     HEADPHONE_OUT : SPEAKER_OUT;
+			else
+				spec->cur_out_type = spec->out_enum_val;
+		} else {
+			jack_present = snd_hda_jack_detect(codec, spec->unsol_tag_hp) ||
+				   snd_hda_jack_detect(codec, spec->unsol_tag_front_hp);
 
-		if (jack_present)
-			spec->cur_out_type = HEADPHONE_OUT;
-		else
-			spec->cur_out_type = SPEAKER_OUT;
+			if (jack_present)
+				spec->cur_out_type = HEADPHONE_OUT;
+			else
+				spec->cur_out_type = SPEAKER_OUT;
+		}
 	} else
 		spec->cur_out_type = spec->out_enum_val;
 	if (ca0132_quirk(spec) == QUIRK_AE9)
@@ -10012,6 +10023,7 @@ static void ae9_acm_update_headphone_jack(struct hda_codec *codec, int reg2)
 	struct snd_kcontrol *kctl;
 	bool present = !(reg2 & 0x20);
 	bool notify = false;
+	bool auto_jack;
 	int output = present ? HEADPHONE_OUT : SPEAKER_OUT;
 	int err;
 
@@ -10026,12 +10038,19 @@ static void ae9_acm_update_headphone_jack(struct hda_codec *codec, int reg2)
 	if (!kctl)
 		return;
 
+	auto_jack = spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID];
+
 	CLASS(snd_hda_power_pm, pm)(codec);
 	mutex_lock(&spec->ae9_output_mutex);
 	spec->ae9_hp_jack_valid = true;
 	spec->ae9_hp_jack_present = present;
 	codec_info(codec, "AE-9 ACM: headphone jack %s (reg2=%02x)\n",
 		   present ? "inserted" : "removed", reg2);
+	/* Record the sample even with auto-detect off so that enabling it
+	 * follows the current jack; never move the output behind the user's
+	 * back while manual selection is active. */
+	if (!auto_jack)
+		goto out;
 	if (spec->out_enum_val == output && spec->cur_out_type == output)
 		goto out;
 
