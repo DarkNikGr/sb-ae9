@@ -178,7 +178,7 @@ sudo reboot
 `install.sh` adds the DKMS module set (`sb-ae9`), extracts and installs the firmware segment
 (`--no-firmware` skips that step if it is already in place), installs the modprobe drop-in,
 the `ae9-defaults` user service and the `50-ae9-resume` system-sleep hook, and warns about
-Secure Boot and `iommu=pt`. After the reboot the card comes up by itself. After the reboot the card comes up by itself.
+Secure Boot and `iommu=pt`. After the reboot the card comes up by itself.
 
 Check: `dmesg | grep 'AE-9'` should show `converter bring-up done` and
 `AE-9 ACM: present, firmware …, output headphone`, followed a few seconds later by
@@ -367,8 +367,9 @@ For readers of `patches/0002` and `driver/ca0132/ca0132.c` (`QUIRK_AE9`):
   keepalive frames, register read/write for the headphone-amp bit, display text, SBX light,
   button/knob event polling. ACM power-up writes GPIO pin 5 only; the Windows pin-0 pulse
   is never issued because it resets both DACs.
-- Volume: Windows' 101-entry dB table applied on the DAC amp; the DSP volume stage parked at
-  0 dB at bring-up (it latches at stream start); the knob writes the `Master` control.
+- Volume: the DAC amp's 1 dB steps with 0 dB at the top (step 90), shared by the knob,
+  `Master` and `Headphone+LO`; the DSP volume stage is parked at 0 dB at bring-up (it
+  latches at stream start); the knob writes the `Master` control.
 - Controls: `AE-9 Output` (renamed so desktop card profiles cannot rewrite it), effects
   master default off with an explicit effects-off push at bring-up.
 - Desktop: the headphone pin is marked "no presence detect", which gives ALSA a
@@ -425,8 +426,8 @@ driver changes later ported from that project are listed under *Credits*.
 
 ## Credits
 
-Most of the driver work in this branch was authored and tested on the same AE-9
-hardware by **s3boun3t**, and is ported from
+The driver changes in this branch were authored and tested on the same AE-9
+hardware by **s3boun3t**, and are ported from
 [`s3boun3t/ae9_build`](https://github.com/s3boun3t/ae9_build) (that project
 imports this driver at `f33f44c` and is GPL-2.0 as well):
 
