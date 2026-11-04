@@ -221,6 +221,9 @@ struct hda_multi_out {
 	unsigned int spdif_rates;
 	unsigned int spdif_maxbps;
 	u64 spdif_formats;
+	/* Must match the kernel's struct: snd-hda-codec.ko writes this field
+	 * through &spec->multiout.  Without it the write lands in out_pins[]. */
+	struct snd_kcontrol *share_spdif_kctl;
 };
 
 int snd_hda_create_spdif_share_sw(struct hda_codec *codec,
