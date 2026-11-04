@@ -621,6 +621,10 @@ class Win(Adw.ApplicationWindow):
         self.add_combo(g, None, "AE-9 Output", "What you hear",
                        "Same as holding the knob for 1.5–3 s")
         self.add_switch(g, "HP/Speaker Auto Detect", "Headphone auto-detect")
+        self.add_note(
+            g,
+            "Auto-detect follows the ACM 3.5 mm jack. The ACM firmware does "
+            "not report the 6.35 mm jack, so switch the output by hand for it.")
         page.add(g)
 
         g2 = Adw.PreferencesGroup(
