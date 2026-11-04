@@ -243,10 +243,12 @@ Headphone output, effects off). The file header also carries a ready
 - ACM microphone (main codec): `arecord -D hw:Creative,0 -f S32_LE -r 48000 -c 2 -d 5 mic.wav`
 - Rear line-in (secondary codec): `arecord -D hw:Creative,4 -f S32_LE -r 48000 -c 2 -d 5 line.wav`
 - What U Hear (DSP loopback of playback): `arecord -D hw:Creative,2 -f S32_LE -r 48000 -c 2 -d 5 loop.wav`
-- Under PipeWire the ACM mic is the default source. `install/20-ae9-inputs.conf` also exposes
-  **"Sound Blaster AE-9 Line In"** (device 4), **"Sound Blaster AE-9 What U Hear"** (device 2)
-  and **"Sound Blaster AE-9 S/PDIF"** (device 10) as separate sources; select them in
-  Audacity/OBS/GNOME. The S/PDIF source is silent until the optical input switch is on;
+- Under PipeWire the ACM mic is the default source. The card's nodes are named
+  **"Sound Blaster AE-9 Output"** and **"Sound Blaster AE-9 Microphone"**; the digital
+  sink appears as **"Sound Blaster AE-9 S/PDIF Output"**. `install/20-ae9-inputs.conf`
+  also exposes **"Sound Blaster AE-9 Line In"** (device 4), **"Sound Blaster AE-9 What U Hear"**
+  (device 2) and **"Sound Blaster AE-9 S/PDIF"** (device 10) as separate sources; select them
+  in Audacity/OBS/GNOME. The S/PDIF source is silent until the optical input switch is on;
   `ae9-defaults` turns it on at login, and the GUI's Output page has the same switch.
   In Audacity, prefer the AE-9 source over the generic `default` entry, which can advertise a
   bogus 128-channel maximum; set 1 or 2 recording channels.

@@ -52,6 +52,8 @@ rm -f "$home/.config/wireplumber/main.lua.d/51-ae9-soft-mixer.lua" \
       "$home/.config/wireplumber/wireplumber.conf.d/51-ae9-soft-mixer.conf.disabled"
 install -D -m 644 "$SRC/install/20-ae9-inputs.conf" "$home/.config/pipewire/pipewire.conf.d/20-ae9-inputs.conf"
 chown "$usr:" "$home/.config/pipewire/pipewire.conf.d/20-ae9-inputs.conf"
+install -D -m 644 "$SRC/install/30-ae9-names.conf" "$home/.config/wireplumber/wireplumber.conf.d/30-ae9-names.conf"
+chown "$usr:" "$home/.config/wireplumber/wireplumber.conf.d/30-ae9-names.conf"
 
 echo "== 4/5 session defaults (user service) =="
 install -D -m 755 "$SRC/install/ae9-defaults.sh" /usr/local/libexec/sb-ae9/ae9-defaults.sh
