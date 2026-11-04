@@ -2,4 +2,4 @@
 # multichannel only).  The ACP digital (iec958) profile is built on PCM device
 # 1, which is not wired to the optical port on this card; the optical S/PDIF
 # sink and source are provided by 20-ae9-inputs.conf on hw:Creative,10.
-SUBSYSTEM=="sound", KERNEL=="card*", ATTRS{vendor}=="0x1102", ATTRS{device}=="0x0010", ATTRS{subsystem_device}=="0x0071", ENV{ACP_PROFILE_SET}="sb-ae9.conf", ENV{ID_MODEL_FROM_DATABASE}="Sound Blaster AE-9"
+SUBSYSTEM=="sound", KERNEL=="card*", ATTRS{vendor}=="0x1102", ATTRS{device}=="0x0010", ATTRS{subsystem_device}=="0x0071", ENV{ACP_PROFILE_SET}="sb-ae9.conf"
