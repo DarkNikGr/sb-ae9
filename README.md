@@ -212,7 +212,7 @@ boots (the numeric index can).
 ### GUI (`tools/ae9-fx`)
 A GTK 4 / libadwaita app with a sidebar for **Volume** (Master, mute and the
 ACM selector status), **Output** (`AE-9 Output`, auto-detect, surround, S/PDIF out/in),
-**Format** (running rate, PipeWire allowed rates, Direct Mode), **SBX** (effects,
+**Format** (running rate, PipeWire allowed and forced graph rate, Direct Mode), **SBX** (effects,
 levels, 10-band EQ), **DAC** (oversampling filter, headphone gain) and
 **Capture** (levels, mic boost, What U Hear, ACM input, CrystalVoice and VoiceFX
 presets). It drives the same ALSA controls as `amixer` and needs no root.
@@ -250,9 +250,10 @@ Headphone output, effects off). The file header also carries a ready
   **"Sound Blaster AE-9 What U Hear"** (device 2) and **"Sound Blaster AE-9 S/PDIF"**
   (device 10) as separate sources; select them in Audacity/OBS/GNOME. The S/PDIF input is
   silent until the optical input switch is on; `ae9-defaults` turns it on at login, and the
-  GUI's Output page has the same switch. In Audacity, prefer the AE-9 source over the generic
-  `default` entry, which can advertise a bogus 128-channel maximum; set 1 or 2 recording
-  channels.
+  GUI's Output page has the same switch. The extra sources follow the graph rate; for a
+  capture-only session at another rate (e.g. 96 kHz) use the Format page's **Force rate**.
+  In Audacity, prefer the AE-9 source over the generic `default` entry, which can advertise a
+  bogus 128-channel maximum; set 1 or 2 recording channels.
 - What U Hear is the loopback of what the card is playing (tested with a 440 Hz tone at
   −26 dBFS); S/PDIF in (device 10) works and was tested with an optical loopback at
   44.1–192 kHz. The ACM 48 V phantom command is not exposed yet (dynamic mics work).

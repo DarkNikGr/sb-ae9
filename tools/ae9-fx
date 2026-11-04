@@ -302,6 +302,21 @@ def graph_rate():
     return int(m.group(0)) if m else None
 
 
+def forced_rate():
+    m = re.search(r"\d+", _setting("clock.force-rate") or "")
+    return int(m.group(0)) if m else 0
+
+
+def apply_force_rate(rate):
+    """Force the graph rate (0 = follow the streams)."""
+    p = subprocess.run(["pw-metadata", "-n", "settings", "0",
+                        "clock.force-rate", str(rate)],
+                       capture_output=True, text=True)
+    if p.returncode != 0:
+        lines = (p.stderr or p.stdout).strip().splitlines()
+        raise RuntimeError(lines[-1] if lines else "pw-metadata failed")
+
+
 def apply_allowed_rates(rates):
     """Apply now (pw-metadata) and persist for the next PipeWire start."""
     val = "[ " + " ".join(str(r) for r in rates) + " ]"
@@ -774,6 +789,21 @@ class Win(Adw.ApplicationWindow):
             self.rate_rows[r] = row
         page.add(g2)
 
+        gf = Adw.PreferencesGroup(
+            title="Graph rate",
+            description="Capture sources follow the graph rate. Auto follows "
+                        "the playing stream; choose a rate to force it (for "
+                        "example when recording at 96 kHz with nothing playing).")
+        self.force_rates = [0, 44100, 48000, 88200, 96000, 192000]
+        self.force_combo = Adw.ComboRow(
+            title="Force rate",
+            model=Gtk.StringList.new(
+                ["Auto (follow streams)"] +
+                [f"{r} Hz" for r in self.force_rates[1:]]))
+        self.force_combo.connect("notify::selected", self.on_force_rate)
+        gf.add(self.force_combo)
+        page.add(gf)
+
         g3 = Adw.PreferencesGroup(title="Limits")
         self.add_note(
             g3,
@@ -1006,6 +1036,21 @@ class Win(Adw.ApplicationWindow):
         self.reload()
         return False
 
+    def on_force_rate(self, row, _param):
+        if self.loading:
+            return
+        idx = row.get_selected()
+        if idx < 0 or idx >= len(self.force_rates):
+            return
+        try:
+            apply_force_rate(self.force_rates[idx])
+        except (RuntimeError, OSError) as exc:
+            self.toast(f"graph rate: {exc}")
+            return
+        rate = self.force_rates[idx]
+        self.toast("Graph rate: auto" if rate == 0 else f"Graph rate: {rate} Hz")
+        self.refresh_format()
+
     def on_rate(self, row, _param, rate):
         if self.loading:
             return
@@ -1114,6 +1159,10 @@ class Win(Adw.ApplicationWindow):
             allowed = set(allowed_rates())
             for r, row in self.rate_rows.items():
                 row.set_active(r in allowed)
+
+            fr = forced_rate()
+            self.force_combo.set_selected(
+                self.force_rates.index(fr) if fr in self.force_rates else 0)
 
             fmt = saved_format()
             values = [v for _label, v in FORMATS]
