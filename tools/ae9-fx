@@ -8,9 +8,10 @@ sample rates for the card's analog output and toggles the driver's Direct
 Mode (native-rate playback at 44.1-192 kHz).
 
 Capture is supported by the driver: the ACM microphone and the rear line-in.
-The Capture page shows the input selector and where the sources appear; the
-capture volume and mic boost are left to PipeWire/GNOME because the simple
-mixer lookup returns an error while PipeWire owns the capture device.
+The Input page shows each source separately, its rate/format and where it
+appears in PipeWire; the capture volume and mic boost are left to
+PipeWire/GNOME because the simple mixer lookup returns an error while
+PipeWire owns the capture device.
 
 Requires python3-gobject, Gtk 4 and libadwaita (on Fedora:
 `dnf install python3-gobject gtk4 libadwaita`). Run it straight from the tree,
@@ -677,10 +678,10 @@ class Win(Adw.ApplicationWindow):
         for title, icon, build in (
             ("Volume", "audio-volume-high-symbolic", self.page_level),
             ("Output", "audio-speakers-symbolic", self.page_output),
+            ("Input", "audio-input-microphone-symbolic", self.page_capture),
             ("Format", "audio-x-generic-symbolic", self.page_format),
             ("SBX", "applications-multimedia-symbolic", self.page_fx),
             ("DAC", "audio-card-symbolic", self.page_dac),
-            ("Capture", "audio-input-microphone-symbolic", self.page_capture),
         ):
             page = Adw.PreferencesPage()
             build(page)
@@ -877,13 +878,11 @@ class Win(Adw.ApplicationWindow):
         page.add(g3)
 
         g4 = Adw.PreferencesGroup(
-            title="S/PDIF (optical)",
-            description="Digital output and input on the card bracket "
-                        "(playback and capture device 10)")
+            title="S/PDIF output",
+            description="Digital output on the card bracket (device 10); the "
+                        "input switch is on the Input page")
         self.add_switch(g4, "IEC958 Playback Switch", "S/PDIF output",
                         "Send the digital output to the optical port")
-        self.add_switch(g4, "IEC958 Capture Switch", "S/PDIF input",
-                        "Receive the optical input as capture device 10")
         self.add_input_format(g4, "spdif_out", "output")
         self.add_note(
             g4,
@@ -893,8 +892,7 @@ class Win(Adw.ApplicationWindow):
             "advertised by the digital converter. For playback pick the "
             "'Sound Blaster AE-9 Optical S/PDIF' sink; the ACP digital "
             "profile's sink uses the other PCM and is silent at the optical "
-            "port. The input is the 'Sound Blaster AE-9 S/PDIF' PipeWire "
-            "source. The optical link is stereo PCM; 5.1 is available on the "
+            "port. The optical link is stereo PCM; 5.1 is available on the "
             "analog line-out, not over S/PDIF. The rate/format rows above "
             "belong to this digital PCM only; the analog output keeps its own "
             "Format-page setting.")
@@ -965,7 +963,7 @@ class Win(Adw.ApplicationWindow):
         gf = Adw.PreferencesGroup(
             title="Graph rate",
             description="Capture sources follow the graph rate unless the "
-                        "Capture page sets a fixed rate for that input. Auto "
+                        "Input page sets a fixed rate for that input. Auto "
                         "follows the playing stream; choose a rate to force it "
                         "(for example when recording at 96 kHz with nothing "
                         "playing).")
@@ -1108,10 +1106,13 @@ class Win(Adw.ApplicationWindow):
         gspdif = Adw.PreferencesGroup(
             title="S/PDIF input",
             description="Optical input on capture device 10 (digital)")
+        self.add_switch(gspdif, "IEC958 Capture Switch", "S/PDIF input",
+                        "Receive the optical input as capture device 10")
         self.add_input_format(gspdif, "spdif")
         self.add_note(
             gspdif,
-            "The S/PDIF capture switch is on the Output page.")
+            "The matching S/PDIF output switch is on the Output page. In "
+            "PipeWire this source is 'Sound Blaster AE-9 S/PDIF'.")
         page.add(gspdif)
 
         gfx = Adw.PreferencesGroup(

@@ -321,7 +321,7 @@ also exposes:
 - **“Sound Blaster AE-9 S/PDIF”** — `hw:Creative,10`;
 - **“Sound Blaster AE-9 Optical S/PDIF”** — playback sink on `hw:Creative,10`.
 
-By default the extra sources follow the PipeWire graph. The GUI's **Capture** page has
+By default the extra sources follow the PipeWire graph. The GUI's **Input** page has
 a separate rate and bit-depth setting for each input:
 
 | Input | Node | Rates | Storage |
@@ -332,9 +332,10 @@ a separate rate and bit-depth setting for each input:
 | S/PDIF in (device 10) | `alsa_input.ae9_spdif` | 44.1–192 kHz | `20-ae9-inputs.conf` |
 
 The optical output is a separate PCM as well, with its own rate and bit-depth rows on
-the **Output** page (under *S/PDIF (optical)*). The analog format from the Format page
+the **Output** page (under *S/PDIF output*). The analog format from the Format page
 does not apply to it; this setting is stored for `alsa_output.ae9_spdif` in
-`20-ae9-inputs.conf`. **Auto** follows the graph rate, a fixed value opens that PCM at
+`20-ae9-inputs.conf`. The matching S/PDIF input switch and format rows are on the
+**Input** page. **Auto** follows the graph rate, a fixed value opens that PCM at
 the selected rate and the graph resamples into it.
 
 Choose **Auto** to leave the ALSA default (`S32LE`, graph rate). A forced rate is that
@@ -349,7 +350,7 @@ rear line-in, which is the secondary codec's own capture device and is selected 
 **Sound Blaster AE-9 Line In** in the recording application.
 
 Capture level and mic boost are the card's hardware amp (1 dB steps, 90 = 0 dB): use
-`Capture` in `amixer` or the **Capture** page of the GUI, plus `Mic Boost`
+`Capture` in `amixer` or the **Input** page of the GUI, plus `Mic Boost`
 (0/10/20/30 dB). PipeWire/GNOME add their own software source volume on top. The rear
 line-in has no hardware amp of its own, so its level is the source volume in the
 desktop.
@@ -467,11 +468,11 @@ No root needed.
 | Page | What it controls |
 |---|---|
 | **Volume** | Master, mute, ACM selector status |
-| **Output** | `AE-9 Output`, auto-detect, surround, S/PDIF out/in switches, separate S/PDIF rate/bits |
+| **Output** | `AE-9 Output`, auto-detect, surround, S/PDIF output switch and rate/bits |
+| **Input** | Separate microphone, line-in, What U Hear and S/PDIF groups, per-input rate/bits, S/PDIF input switch, capture level/switch, mic boost, CrystalVoice and VoiceFX |
 | **Format** | Running format, graph clock, allowed and forced rates, Direct Mode, sample bits, PipeWire restart |
 | **SBX** | Effects master, each processor and level, 10-band EQ |
 | **DAC** | Oversampling filter (headphone gain is the ACM switch) |
-| **Capture** | Separate microphone, line-in, What U Hear and S/PDIF groups, per-input rate/bits, capture level/switch, mic boost, CrystalVoice and VoiceFX |
 
 The header has **reload** (re-read the card) and **reset** (manufacturer defaults:
 Master 65, Headphone output, effects off). The Format page, `AE-9 Output` and
