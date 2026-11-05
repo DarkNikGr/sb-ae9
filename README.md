@@ -26,11 +26,11 @@ the same meaning as the Features table below.
 | PCI | `1102:0010`, subsystem `1102:0071` (PCIe) | Working |
 | Codecs | 2× CA0132 Sound Core3D (main + secondary) | Working |
 | Headphone DAC | ES9038Q2M (`0x48`) | Working |
-| Line-out DAC | SABRE9006 (`0x49`) | Working; silent on some revisions |
+| Line-out DAC | SABRE9006 (`0x49`) | Working; drives rear and center/sub |
 | ACM | Volume knob, dB display, mute, SBX button/light, output toggle | Working |
 | ACM gain | 3-position IEM / N / HIGH switch (analog stage) | Hardware switch; no software control |
 | Headphone amp | 16–600 Ω supported, 1 Ω output impedance | Working |
-| Analog out | Headphone 6.35 mm (ACM), rear line-out, 5.1 analog | Working |
+| Analog out | Headphone 6.35 mm (ACM), front L/R, rear, center/sub | Working; 5.1 on jacks 13–16 |
 | Analog in | ACM 6.3 mm mic, XLR mic, rear line-in | Working |
 | XLR 48 V | Phantom power via the ACM button | Not exposed in software |
 | Optical | S/PDIF in and out | Working, 44.1–192 kHz |
@@ -54,7 +54,9 @@ the same meaning as the Features table below.
 | ACM | Mic / line input (6.3 mm, XLR) | Working; 48 V phantom not exposed |
 | Card | Playback 44.1 / 48 / 88.2 / 96 / 192 kHz | Working (native rate with Direct Mode) |
 | Card | SBX effects, per-effect switches and levels | Working |
-| Card | Rear line-out (SABRE9006) | Working on the Fedora/alsa-firmware card; silent on the maintainer's card |
+| Card | 5.1 analog output on jacks 13–16 (front, rear, center/sub) | Working; rear enabled through codec pin `0x11` |
+| Card | Speaker layout ↔ PipeWire profile (`2.0`…`5.1`) | Working, both directions (`ae9-profile-sync`) |
+| Card | GNOME “Headphones” / “Line Out” ↔ ACM output | Working, both directions (`ae9-profile-sync`) |
 | Card | Rear line-in / mic-in | Working (capture device 4) |
 | Card | What U Hear loopback | Working (capture device 2) |
 | Card | Optical S/PDIF out | Working, 44.1–192 kHz (loopback-tested) |
@@ -80,7 +82,11 @@ card; they are kept here so the scope is visible.
       gain. The driver leaves the ES9038Q2M trims at 0 dB and exposes no duplicate
       software control; nothing is left to implement in software.
 - [x] **Headphone / line-out routing** — shared `Headphone+LO`, auto-detect, exclusive
-      output switching and the ES9038 front mute.
+      output switching and the ES9038/SABRE mutes.
+- [x] **Analog 5.1** — front, rear and center/sub on jacks 13–16; rear line-out is codec
+      pin `0x11`, balanced against the front pair, and muted with the headphones.
+- [x] **Desktop sync** — `Surround Channel Config` ↔ PipeWire profile, and the GNOME
+      Headphones/Line Out routes ↔ the ACM `AE-9 Output` relay.
 - [x] **Direct Mode** — stream-rate following at 44.1–192 kHz, effects off, stereo.
 - [x] **Optical S/PDIF** — playback and capture at 44.1–192 kHz, loopback-tested.
 - [x] **Desktop entry** — `install.sh` installs `ae9-fx` and its application-grid entry.
@@ -94,7 +100,6 @@ card; they are kept here so the scope is visible.
 - [ ] **Driver** — AC3/DTS passthrough over optical S/PDIF (blocked: there is no
       IEC958 subframe route on device 10).
 - [ ] **Driver** — import SBX profiles from the Windows package.
-- [ ] **Driver** — investigate the silent rear line-out on some card revisions.
 - [ ] **Driver** — document the remaining ACM/DSP registers.
 
 ---
@@ -260,13 +265,20 @@ amixer -c Creative sset 'AE-9 Output' Speakers
 ```
 
 Or hold the knob for 1.5–3 s. With the default `ae9_out_mute=1` the two positions are
-exclusive: Headphone writes the ES9038 front mute (register `0x1d`) so the rear jacks
-are silent; Speakers keeps the line-out live and drops the ACM headphone-amp bit.
+exclusive: Headphone writes the ES9038 front mute (register `0x1d`), mutes the
+SABRE9006 and disables every line-out pin, so jacks 13–16 are silent; Speakers keeps
+the line-out live and drops the ACM headphone-amp bit.
 
 Set `ae9_out_mute=0` in `/etc/modprobe.d/sb-ae9.conf` if you want both outputs audible
-at the same time. The exclusivity is a driver choice, not a hardware limit; it was
-tested on this card, and the rear jacks are silent on some card revisions anyway (see
-the troubleshooting section).
+at the same time. The exclusivity is a driver choice, not a hardware limit.
+
+The `ae9-profile-sync` user service bridges the two layers the desktop exposes:
+
+- `Surround Channel Config` (`2.0`, `2.1`, `4.0`, `4.1`, `5.1`) ↔ the PipeWire card
+  profile and default sink.
+- GNOME's **Headphones** / **Line Out** routes ↔ this `AE-9 Output` relay, so changing
+  either one updates the other. The same service makes the analog 5.1 sink the default
+  instead of the optical S/PDIF.
 
 - The control is deliberately **not** called “Output Select”: desktop ALSA profiles
   map that name onto sink ports and rewrite it on every route restore.
@@ -432,7 +444,9 @@ No root needed.
 | **Capture** | Input source, capture level/switch, mic boost, What U Hear, CrystalVoice and VoiceFX |
 
 The header has **reload** (re-read the card) and **reset** (manufacturer defaults:
-Master 65, Headphone output, effects off). The Format page refreshes every 2 s.
+Master 65, Headphone output, effects off). The Format page, `AE-9 Output` and
+`Surround Channel Config` refresh every 2 s, so changes made with the ACM knob or
+from GNOME appear in the window without a manual reload.
 
 Dependencies (Fedora): `python3-gobject gtk4 libadwaita`.
 
@@ -461,9 +475,13 @@ quickest way to tell a GUI bug from a driver state.
 - WirePlumber drives the hardware mixer (`soft-mixer=false`, the default) through the
   shared **`Headphone+LO`** control, which sets both the ACM headphones and the rear
   line-out. `Master` and the knob are the same 1 dB hardware control.
-- The card comes up on its analog profile by itself. If the digital profile is selected
-  manually, the analog sink disappears until `ae9-defaults` runs again (or you select
-  the analog profile in GNOME).
+- All analog profiles (`analog-stereo`, `analog-surround-21/40/41/50/51`) stay
+  available: the driver marks the permanently wired line-out pins as
+  `NO_PRESENCE`, so ACP sees a phantom jack instead of an unplugged one. The 5.1
+  profile therefore no longer collapses back to stereo (or to S/PDIF) when playback
+  stops.
+- `ae9-profile-sync` keeps the ALSA speaker layout, the PipeWire profile and the
+  GNOME Headphones/Line Out routes in sync; see *Output selection* above.
 
 The installer does not use a custom ALSA profile set. That keeps the stock ACP
 profiles available; the price is that the extra PCM devices must be exposed by
@@ -488,6 +506,22 @@ profiles available; the price is that the extra PCM devices must be exposed by
 ```sh
 systemctl --user restart --no-block ae9-defaults
 journalctl --user -u ae9-defaults
+```
+
+`ae9-profile-sync` (user service, always running) keeps two pairs of controls in
+step, polling every 2 s:
+
+- `Surround Channel Config` (`2.0`…`5.1`) ↔ the PipeWire card profile and the analog
+  sink used as default;
+- the GNOME **Headphones** / **Line Out** route ↔ the `AE-9 Output` relay (the same
+  control the ACM knob and `ae9-fx` write).
+
+It also names every analog sink (`Sound Blaster AE-9 Output`, `… 2.1`, `… 4.0`,
+`… 4.1`, `… 5.0`, `… 5.1`) and gives it priority over the optical S/PDIF.
+
+```sh
+systemctl --user restart ae9-profile-sync
+journalctl --user -u ae9-profile-sync
 ```
 
 `ae9-unmute.service` (user unit, `WantedBy=pipewire.service`) re-asserts the
@@ -568,12 +602,19 @@ from the kernel command line. Add it and reboot.
 Power the machine fully off (not a warm reboot), wait 30 s, reseat the ACM cable, then
 cold boot.
 
-### The rear line-out is silent in both positions
+### The rear or center/sub jacks are silent
 
-On the maintainer's Ubuntu card the RCA jacks stay silent; on the Fedora/
-alsa-firmware card they work and the switch is exclusive. If yours is silent in both
-positions, attach `tools/collect-report.sh` output and the size and SHA-256 of your
-`ctefx-desktop.bin` to an issue.
+Check, in this order:
+
+1. `AE-9 Output` is **Speakers** — Headphone mutes every line-out by design.
+2. `Surround Channel Config` and the PipeWire profile are the same (`5.1` for all six
+   channels); `ae9-profile-sync` keeps them in step.
+3. `Surround`, `Center` and `LFE` playback switches are on and their volumes are up.
+4. The card is on a driver that includes the pin `0x11` rear-line-out fix; the old
+   AE-5/AE-7 mapping used to disable that pin in speaker mode.
+
+If the jacks are still silent, attach `tools/collect-report.sh` output and the size
+and SHA-256 of your `ctefx-desktop.bin` to an issue.
 
 ---
 
@@ -623,11 +664,15 @@ docs/               investigation log, protocol notes, register captures
 
 `patches/` is the upstream-shaped series against the current sound.git
 `for-next` branch.  The HDA-core fix is generic; the codec support is split
-into 22 feature patches in `patches/series/` (plus a cover letter).  All
+into 24 feature patches in `patches/series/` (plus a cover letter).  All
 patches pass `checkpatch.pl` and the series applies to a clean `for-next`
 tree and builds against the 7.2 headers.  The out-of-tree tree keeps a
 scoped version of the core readback because its DKMS module replaces
 `snd-hda-core` for every controller.  See `patches/README.md`.
+
+The analog 5.1 output, the pin `0x11` rear fix and the desktop sync services
+are newer than the current 24-patch series; folding them into the series is
+the next upstream step.
 
 ---
 
@@ -647,8 +692,12 @@ For readers of `patches/` and `driver/ca0132/ca0132.c` (`QUIRK_AE9`):
   and `Headphone+LO`. The DSP volume stage is parked at 0 dB at bring-up.
 - Controls: `AE-9 Output` (renamed so desktop profiles cannot rewrite it), the SBX
   master defaulting off, the output auto-detect gate and the Direct Mode switch.
-- Desktop: the headphone pin is marked “no presence detect”, giving ALSA a phantom
-  jack so the analog profile is available and WirePlumber can default to it.
+- Analog 5.1: three output pairs through the DSP, with the rear line-out on codec pin
+  `0x11` (the pin the AE-5/AE-7 use for the rear headphone jack), the DSP output
+  trims balanced at 0 dB and the SABRE9006 muted with the headphones.
+- Desktop: the headphone and line-out pins are marked “no presence detect”, giving
+  ALSA phantom jacks so every analog profile (stereo, 2.1, 4.0, 4.1, 5.0, 5.1) stays
+  available and WirePlumber can default to the active one instead of S/PDIF.
 - Robustness: codec runtime PM held (the ACM service dies in D3), ACM work rescheduled
   on resume, DSP command-engine access serialised with a mutex, all UART waits sleep,
   and the ACM work runs on the unbound workqueue.
