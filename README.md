@@ -468,12 +468,11 @@ No root needed.
 | Page | What it controls |
 |---|---|
 | **Volume** | Master, mute, ACM selector status |
-| **Output** | `AE-9 Output`, auto-detect, surround, S/PDIF output switch and rate/bits, running format, graph clock, allowed/forced rates, Direct Mode, analog sample bits |
+| **Output** | `AE-9 Output`, auto-detect, surround, S/PDIF output switch and rate/bits, DAC oversampling filter, running format, graph clock, allowed/forced rates, Direct Mode, analog sample bits |
 | **Input** | Separate microphone, line-in, What U Hear and S/PDIF groups, per-input rate/bits, S/PDIF input switch, capture level/switch, mic boost, CrystalVoice and VoiceFX |
 | **SBX** | Effects master, each processor and level, 10-band EQ |
-| **DAC** | Oversampling filter (headphone gain is the ACM switch) |
 
-The sidebar's **Restart PipeWire** button (bottom left) applies the saved output and input
+The sidebar's **Restart PipeWire** button (bottom left, full width) applies the saved output and input
 rates/formats from any page. The header has **reload** (re-read the card) and **reset**
 (manufacturer defaults: Master 65, Headphone output, effects off). The Output page,
 `AE-9 Output` and `Surround Channel Config` refresh every 2 s, so changes made with the

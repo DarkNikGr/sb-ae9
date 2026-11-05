@@ -646,14 +646,18 @@ class Win(Adw.ApplicationWindow):
         # One global action, at the bottom of the sidebar: it applies the
         # saved output/input rates and formats on every page.
         sidebar_bottom = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        sidebar_bottom.set_margin_top(6)
-        sidebar_bottom.set_margin_bottom(6)
-        sidebar_bottom.set_margin_start(6)
-        sidebar_bottom.set_margin_end(6)
+        sidebar_bottom.set_hexpand(True)
+        sidebar_bottom.set_margin_top(8)
+        sidebar_bottom.set_margin_bottom(8)
+        sidebar_bottom.set_margin_start(8)
+        sidebar_bottom.set_margin_end(8)
         restart_btn = Gtk.Button()
         restart_btn.set_child(Adw.ButtonContent(
             icon_name="view-refresh-symbolic", label="Restart PipeWire"))
-        restart_btn.set_halign(Gtk.Align.START)
+        restart_btn.set_hexpand(True)
+        restart_btn.set_halign(Gtk.Align.FILL)
+        restart_btn.set_size_request(-1, 52)
+        restart_btn.add_css_class("pill")
         restart_btn.set_tooltip_text(
             "Restart PipeWire and WirePlumber; applies the saved rates and formats")
         restart_btn.connect("clicked", lambda _b: self.do_restart())
@@ -698,7 +702,6 @@ class Win(Adw.ApplicationWindow):
             ("Output", "audio-speakers-symbolic", self.page_output),
             ("Input", "audio-input-microphone-symbolic", self.page_capture),
             ("SBX", "applications-multimedia-symbolic", self.page_fx),
-            ("DAC", "audio-card-symbolic", self.page_dac),
         ):
             page = Adw.PreferencesPage()
             build(page)
@@ -834,6 +837,7 @@ class Win(Adw.ApplicationWindow):
         self.add_input_format(g4, "spdif_out")
         page.add(g4)
 
+        self.page_dac(page)
         self.page_analog_format(page)
 
     def page_analog_format(self, page):
