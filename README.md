@@ -524,13 +524,22 @@ and read Hazard 5.
 ```
 driver/ca0132/      codec driver (kernel ca0132.c + AE-9 support)
 driver/hda-core/    kernel HDA core + the posted-write fix, built as an override
-patches/            0001 HDA-core fix, 0002 codec diff, for review/upstream
+patches/            upstream series against Linux v7.2 (see patches/README.md)
 tools/              ae9-fx GUI, firmware extractor, report collector,
                     S/PDIF loopback test, acm-tool
 install/            modprobe options, PipeWire sources, WirePlumber names,
                     udev name rule, session defaults, unmute/resume hooks
 docs/               investigation log, protocol notes, register captures
 ```
+
+## Upstream status
+
+`patches/` is the upstream-shaped series against Linux v7.2.  Both patches pass
+`checkpatch.pl` and build against the 7.2 headers.  The HDA-core fix is generic;
+the codec support is still one large patch and needs splitting by feature before
+submission.  The out-of-tree tree keeps a scoped version of the core readback
+because its DKMS module replaces `snd-hda-core` for every controller.  See
+`patches/README.md`.
 
 ---
 
@@ -555,8 +564,8 @@ For readers of `patches/` and `driver/ca0132/ca0132.c` (`QUIRK_AE9`):
 - Robustness: codec runtime PM held (the ACM service dies in D3), ACM work rescheduled
   on resume, DSP command-engine access serialised with a mutex, all UART waits sleep,
   and the ACM work runs on the unbound workqueue.
-- HDA core: `patches/0001` flushes posted writes in the interrupt-clear path; without
-  it the stock core hard-locks this controller.
+- HDA core: `patches/0001` flushes posted writes around the command-ring setup;
+  without it the stock core hard-locks this controller.
 
 ---
 

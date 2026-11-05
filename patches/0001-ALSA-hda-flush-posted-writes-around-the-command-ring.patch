@@ -1,0 +1,73 @@
+From 514c100c72424243d32e332e8a839cc29ee67dc2 Mon Sep 17 00:00:00 2001
+From: DarkNikGr <mitakidisnikos@gmail.com>
+Date: Thu, 5 Nov 2026 02:08:45 +0200
+Subject: [PATCH] ALSA: hda: flush posted writes around the command ring setup
+
+The Creative Sound Blaster AE-9 (1102:0010, behind an ASMedia ASM1083
+PCIe-to-PCI bridge) cannot absorb the burst of up to 18 back-to-back
+posted MMIO writes issued by snd_hdac_bus_init_chip() when it clears the
+interrupt status and then programs the CORB/RIRB.  After the burst every
+MMIO read of the controller, and even config reads of the bridge, return
+all-ones after a ~220 ms completion timeout until the link is reset.
+azx_clear_corbrp() then polls 1000 times under spin_lock_irq, so probe
+stalls for minutes with interrupts disabled and hard-locks the machine.
+
+Add a readback after the interrupt-status writes and around the stream
+BDL writes, so the posted writes are flushed before the next read.  This
+is one extra MMIO read on the affected init paths and is harmless on
+other controllers.
+
+Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
+---
+ sound/hda/core/controller.c | 5 +++++
+ sound/hda/core/stream.c     | 4 ++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/sound/hda/core/controller.c b/sound/hda/core/controller.c
+index 69e11d6..c6b66c1 100644
+--- a/sound/hda/core/controller.c
++++ b/sound/hda/core/controller.c
+@@ -86,6 +86,8 @@ void snd_hdac_bus_init_cmd_io(struct hdac_bus *bus)
+ 		snd_hdac_chip_writeb(bus, RIRBCTL, AZX_RBCTL_DMA_EN | AZX_RBCTL_IRQ_EN);
+ 	/* Accept unsolicited responses */
+ 	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
++	/* flush the CORB/RIRB setup writes before anything else touches the ring */
++	snd_hdac_chip_readl(bus, GCTL);
+ }
+ EXPORT_SYMBOL_GPL(snd_hdac_bus_init_cmd_io);
+ 
+@@ -599,6 +601,9 @@ static void azx_int_clear(struct hdac_bus *bus)
+ 
+ 	/* clear int status */
+ 	snd_hdac_chip_writel(bus, INTSTS, AZX_INT_CTRL_EN | AZX_INT_ALL_STREAM);
++
++	/* flush the burst of posted writes before touching the CORB/RIRB */
++	snd_hdac_chip_readl(bus, INTSTS);
+ }
+ 
+ /**
+diff --git a/sound/hda/core/stream.c b/sound/hda/core/stream.c
+index b471a03..19d36a1 100644
+--- a/sound/hda/core/stream.c
++++ b/sound/hda/core/stream.c
+@@ -292,6 +292,8 @@ int snd_hdac_stream_setup(struct hdac_stream *azx_dev, bool code_loading)
+ 	/* upper BDL address */
+ 	snd_hdac_stream_writel(azx_dev, SD_BDLPU,
+ 			       upper_32_bits(azx_dev->bdl.addr + bus->addr_offset));
++	/* flush the burst of posted writes (see azx_int_clear) */
++	snd_hdac_stream_readl(azx_dev, SD_BDLPU);
+ 
+ 	/* enable the position buffer */
+ 	if (bus->use_posbuf && bus->posbuf.addr) {
+@@ -341,6 +343,8 @@ void snd_hdac_stream_cleanup(struct hdac_stream *azx_dev)
+ 	snd_hdac_stream_writel(azx_dev, SD_BDLPL, 0);
+ 	snd_hdac_stream_writel(azx_dev, SD_BDLPU, 0);
+ 	snd_hdac_stream_writel(azx_dev, SD_CTL, 0);
++	/* flush the burst of posted writes (see azx_int_clear) */
++	snd_hdac_stream_readl(azx_dev, SD_CTL);
+ 	azx_dev->bufsize = 0;
+ 	azx_dev->period_bytes = 0;
+ 	azx_dev->format_val = 0;
+-- 
+2.56.0
+
