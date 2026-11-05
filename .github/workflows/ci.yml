@@ -116,8 +116,13 @@ jobs:
           set -e
           KDIR=$(ls -d /usr/src/kernels/* | head -1)
           mkdir -p "$RUNNER_TEMP/tree/sound/hda/codecs"
+          base="https://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git/plain/sound/hda/codecs"
           curl -fsSL -o "$RUNNER_TEMP/tree/sound/hda/codecs/ca0132.c" \
-            "https://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git/plain/sound/hda/codecs/ca0132.c?h=for-next"
+            "$base/ca0132.c?h=for-next"
+          # generic.h is an in-tree header; copy the for-next version next to
+          # the source for the external-module build.
+          curl -fsSL -o "$GITHUB_WORKSPACE/driver/ca0132/generic.h" \
+            "$base/generic.h?h=for-next"
           cd "$RUNNER_TEMP/tree"
           git init -q
           git config user.name "AE-9 CI"
