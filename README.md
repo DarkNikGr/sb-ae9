@@ -23,7 +23,7 @@ the machine. Everything runs under plain ALSA, PipeWire and WirePlumber.
 | ACM | Headphone output (ES9038Q2M) | Working |
 | ACM | Volume knob and dB display, 1 dB steps (−90 … 0 dB) | Working |
 | ACM | Mute (short press, `MUTE` on the display) | Working |
-| ACM | Output toggle (hold 1.5–3 s, `-HP-` / `-SP-`) | Working, exclusive on the tested card |
+| ACM | Output toggle (hold 1.5–3 s, `-HP-` / `-SP-`) | Working; exclusive by default (`ae9_out_mute=1`) |
 | ACM | SBX button and light | Working |
 | ACM | Headphone gain (IEM / Normal / High) | Hardware 3-position switch; not software-controlled |
 | ACM | Mic / line input (6.3 mm, XLR) | Working; 48 V phantom not exposed |
@@ -207,12 +207,14 @@ amixer -c Creative sset 'AE-9 Output' Headphone
 amixer -c Creative sset 'AE-9 Output' Speakers
 ```
 
-Or hold the knob for 1.5–3 s. The two positions are exclusive on the tested card:
-Headphone writes the ES9038 front mute (register `0x1d`) so the rear jacks are silent;
-Speakers keeps the line-out live and drops the ACM headphone-amp bit.
+Or hold the knob for 1.5–3 s. With the default `ae9_out_mute=1` the two positions are
+exclusive: Headphone writes the ES9038 front mute (register `0x1d`) so the rear jacks
+are silent; Speakers keeps the line-out live and drops the ACM headphone-amp bit.
 
-`ae9_out_mute=0` in `/etc/modprobe.d/sb-ae9.conf` restores the old behaviour where both
-outputs can be audible.
+Set `ae9_out_mute=0` in `/etc/modprobe.d/sb-ae9.conf` if you want both outputs audible
+at the same time. The exclusivity is a driver choice, not a hardware limit; it was
+tested on this card, and the rear jacks are silent on some card revisions anyway (see
+the troubleshooting section).
 
 - The control is deliberately **not** called “Output Select”: desktop ALSA profiles
   map that name onto sink ports and rewrite it on every route restore.
