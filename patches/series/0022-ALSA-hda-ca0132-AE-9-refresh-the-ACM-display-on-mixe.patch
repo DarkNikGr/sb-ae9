@@ -1,7 +1,7 @@
-From 6166fdb62d430f4a37f762d08f9e6cdb9c9ff338 Mon Sep 17 00:00:00 2001
-Message-ID: <6166fdb62d430f4a37f762d08f9e6cdb9c9ff338.1793838246.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838246.git.mitakidisnikos@gmail.com>
-References: <cover.1793838246.git.mitakidisnikos@gmail.com>
+From a6001fb7999dce42db95525b1229fee77a6fa3ad Mon Sep 17 00:00:00 2001
+Message-ID: <a6001fb7999dce42db95525b1229fee77a6fa3ad.1793838736.git.mitakidisnikos@gmail.com>
+In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
+References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:45 +0200
 Subject: [PATCH 22/22] ALSA: hda/ca0132: AE-9: refresh the ACM display on
@@ -21,12 +21,12 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 285 insertions(+), 17 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index ea2987d..752134b 100644
+index 959211b..870954f 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
-@@ -19,6 +19,9 @@
- #include <linux/io.h>
+@@ -20,6 +20,9 @@
  #include <linux/pci.h>
+ #include <linux/dma-mapping.h>
  #include <linux/pm_runtime.h>
 +#include <linux/ktime.h>
 +#include <linux/jiffies.h>
@@ -34,7 +34,7 @@ index ea2987d..752134b 100644
  
  /* AE-9 ACM service mode. 0 (default) = initialise the module once (unlock,
   * headphone amp on, display) and then leave it alone: no keepalive, no knob
-@@ -1201,7 +1204,19 @@ struct ca0132_spec {
+@@ -1204,7 +1207,19 @@ struct ca0132_spec {
  	struct delayed_work unsol_hp_work;
  	struct delayed_work ae9_dump_work;	/* AE-9: mid-playback DSP/DAC dump */
  	struct delayed_work ae9_acm_work;	/* AE-9: 500 ms ACM service */
@@ -54,7 +54,7 @@ index ea2987d..752134b 100644
  	unsigned int ae9_acm_fw;
  	int ae9_acm_tick;
  	int ae9_acm_show_mode_ticks;	/* >0: show "-HP-"/"-SP-" briefly */
-@@ -1278,6 +1293,8 @@ enum {
+@@ -1288,6 +1303,8 @@ enum {
  #define ca0132_use_alt_controls(spec)	({ (void)(spec); false; })
  #endif
  
@@ -63,7 +63,7 @@ index ea2987d..752134b 100644
  static const struct hda_pintbl alienware_pincfgs[] = {
  	{ 0x0b, 0x90170110 }, /* Builtin Speaker */
  	{ 0x0c, 0x411111f0 }, /* N/A */
-@@ -6862,7 +6879,7 @@ static int ae9_master_apply(struct snd_kcontrol *kcontrol,
+@@ -6873,7 +6890,7 @@ static int ae9_master_apply(struct snd_kcontrol *kcontrol,
  	guard(mutex)(&codec->control_mutex);
  	err = snd_hda_mixer_amp_volume_put(kcontrol, ucontrol);
  	/* A failed stereo put may already have changed one channel. */
@@ -72,7 +72,7 @@ index ea2987d..752134b 100644
  	if (err < 0)
  		return err;
  	if (ch & 1)
-@@ -7591,7 +7608,7 @@ static void ae9_vmaster_mute_changed(void *private_data, int enabled)
+@@ -7611,7 +7628,7 @@ static void ae9_vmaster_mute_changed(void *private_data, int enabled)
  
  	(void)enabled;
  	/* Refresh from the committed Master state in the ACM worker. */
@@ -81,7 +81,7 @@ index ea2987d..752134b 100644
  }
  
  static int ca0132_build_controls(struct hda_codec *codec)
-@@ -9622,6 +9639,185 @@ static void ae9_automute_probe(struct hda_codec *codec)
+@@ -10005,6 +10022,185 @@ static void ae9_automute_probe(struct hda_codec *codec)
   * from the 500 ms service work (Windows' periodic ACM thread); the ALSA
   * control hooks only set flags. ----
   */
@@ -267,7 +267,7 @@ index ea2987d..752134b 100644
  #define AE9_U_RBR 0xc00
  #define AE9_U_THR 0xc00
  #define AE9_U_DLL 0xc00
-@@ -9806,6 +10002,54 @@ static bool ae9_acm_keepalive(struct ca0132_spec *spec)
+@@ -10189,6 +10385,54 @@ static bool ae9_acm_keepalive(struct ca0132_spec *spec)
  	return n >= 8 && rx[0] == 0xf0 && rx[3];
  }
  
@@ -322,7 +322,7 @@ index ea2987d..752134b 100644
  /* F0 11 09 <8 ASCII, NUL padded> 00 F7 : display text */
  static void ae9_acm_display_frame(struct ca0132_spec *spec, const char *txt, bool wait)
  {
-@@ -9816,6 +10060,8 @@ static void ae9_acm_display_frame(struct ca0132_spec *spec, const char *txt, boo
+@@ -10199,6 +10443,8 @@ static void ae9_acm_display_frame(struct ca0132_spec *spec, const char *txt, boo
  		f[3 + i] = txt[i];
  	if (wait)
  		ae9_acm_cmd(spec, f, sizeof(f));
@@ -331,7 +331,7 @@ index ea2987d..752134b 100644
  	else
  		ae9_acm_tx(spec, f, sizeof(f));	/* fire and forget: volume display */
  }
-@@ -9893,7 +10139,7 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
+@@ -10276,7 +10522,7 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
  		}
  		caps = query_amp_caps(codec, 0x02, HDA_OUTPUT);
  		if (left < 0 || right < 0 || caps == ~0U) {
@@ -340,7 +340,7 @@ index ea2987d..752134b 100644
  			return;
  		}
  		offset = (caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT;
-@@ -9904,6 +10150,8 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
+@@ -10287,6 +10533,8 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
  		snprintf(txt, sizeof(txt), "%s%d.%d", db100 < 0 ? "-" : "",
  			 abs(db100) / 100, (abs(db100) % 100) / 10);
  	}
@@ -349,7 +349,7 @@ index ea2987d..752134b 100644
  	ae9_acm_display_frame(spec, txt, false);
  }
  
-@@ -10004,7 +10252,7 @@ static void ae9_acm_service_knob_press(struct hda_codec *codec)
+@@ -10387,7 +10635,7 @@ static void ae9_acm_service_knob_press(struct hda_codec *codec)
  	if (ms < 1500) {
  		ae9_toggle_ctl(codec, "Master Playback Switch", false);
  		codec_info(codec, "AE-9 ACM: knob press (%d ms) -> mute toggle\n", ms);
@@ -358,7 +358,7 @@ index ea2987d..752134b 100644
  	} else if (ms < 3000) {
  		ae9_toggle_ctl(codec, "AE-9 Output", true);	/* select_out flags pending_mode */
  		codec_info(codec, "AE-9 ACM: knob mid press (%d ms) -> output toggle\n", ms);
-@@ -10300,7 +10548,7 @@ static void ae9_acm_knob(struct hda_codec *codec)
+@@ -10683,7 +10931,7 @@ static void ae9_acm_knob(struct hda_codec *codec)
  	if (n <= 0)
  		return;
  	snd_ctl_notify(codec->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
@@ -367,7 +367,7 @@ index ea2987d..752134b 100644
  }
  
  /* The 500 ms ACM service (Windows: thread 0x413b4; 50 ms "turbo" while the
-@@ -10312,6 +10560,16 @@ static void ae9_acm_work_fn(struct work_struct *work)
+@@ -10695,6 +10943,16 @@ static void ae9_acm_work_fn(struct work_struct *work)
  						struct ca0132_spec, ae9_acm_work);
  	struct hda_codec *codec = spec->codec;
  	bool turbo = spec->ae9_acm_turbo > 0;
@@ -384,7 +384,7 @@ index ea2987d..752134b 100644
  
  	ae9_gpio_cmd(spec, 0x0105);
  	if (!spec->ae9_acm_present) {
-@@ -10320,13 +10578,16 @@ static void ae9_acm_work_fn(struct work_struct *work)
+@@ -10703,13 +10961,16 @@ static void ae9_acm_work_fn(struct work_struct *work)
  			if (spec->ae9_acm_present && !ae9_acm_poll) {
  				ae9_acm_show_volume(spec);
  				codec_info(codec, "AE-9 ACM: initialised; service parked (ae9_acm_poll=0)\n");
@@ -402,7 +402,7 @@ index ea2987d..752134b 100644
  	spec->ae9_acm_tick++;
  	/*
  	 * While the knob is moving only the knob and the display are serviced.
-@@ -10363,17 +10624,16 @@ static void ae9_acm_work_fn(struct work_struct *work)
+@@ -10746,17 +11007,16 @@ static void ae9_acm_work_fn(struct work_struct *work)
  	}
  	if (spec->ae9_acm_show_mode_ticks > 0) {
  		if (--spec->ae9_acm_show_mode_ticks == 0)
@@ -424,7 +424,7 @@ index ea2987d..752134b 100644
  	}
  }
  
-@@ -10460,7 +10720,7 @@ static void ae9_setup_defaults(struct hda_codec *codec)
+@@ -10843,7 +11103,7 @@ static void ae9_setup_defaults(struct hda_codec *codec)
  	codec_info(codec, "AE-9: converter bring-up done (capture-based, OutFX %s)\n",
  		   spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID] ? "on" : "off");
  	ae9_dump_dsp_output_state(codec, "idle after bring-up");
@@ -433,7 +433,7 @@ index ea2987d..752134b 100644
  }
  
  static void ae7_setup_defaults(struct hda_codec *codec)
-@@ -11657,8 +11917,7 @@ static int ca0132_init(struct hda_codec *codec)
+@@ -12038,8 +12298,7 @@ static int ca0132_init(struct hda_codec *codec)
  			if (ca0132_quirk(spec) == QUIRK_SBZ)
  				sbz_dsp_startup_check(codec);
  			if (ca0132_quirk(spec) == QUIRK_AE9)
@@ -443,7 +443,7 @@ index ea2987d..752134b 100644
  			return 0;
  		}
  	}
-@@ -11779,7 +12038,7 @@ static void ca0132_free(struct hda_codec *codec)
+@@ -12160,7 +12419,7 @@ static void ca0132_free(struct hda_codec *codec)
  
  	cancel_delayed_work_sync(&spec->unsol_hp_work);
  	cancel_delayed_work_sync(&spec->ae9_dump_work);
@@ -452,7 +452,7 @@ index ea2987d..752134b 100644
  	snd_hda_power_up(codec);
  	switch (ca0132_quirk(spec)) {
  	case QUIRK_SBZ:
-@@ -12202,6 +12461,7 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -12588,6 +12847,7 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  	codec->spec = spec;
  	spec->codec = codec;
  	mutex_init(&spec->ae9_output_mutex);
@@ -460,7 +460,7 @@ index ea2987d..752134b 100644
  
  	/* These must be set before any path is taken */
  	codec->pcm_format_first = 1;
-@@ -12303,10 +12563,18 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -12689,10 +12949,18 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  
  #ifdef CONFIG_PCI
  	if (spec->use_pci_mmio) {
@@ -480,7 +480,7 @@ index ea2987d..752134b 100644
  		}
  	}
  #endif
-@@ -12390,7 +12658,7 @@ static int ca0132_codec_suspend(struct hda_codec *codec)
+@@ -12776,7 +13044,7 @@ static int ca0132_codec_suspend(struct hda_codec *codec)
  
  	cancel_delayed_work_sync(&spec->unsol_hp_work);
  	cancel_delayed_work_sync(&spec->ae9_dump_work);

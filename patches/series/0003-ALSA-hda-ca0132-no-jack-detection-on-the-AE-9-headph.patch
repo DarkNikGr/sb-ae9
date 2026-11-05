@@ -1,7 +1,7 @@
-From d87c8ba7942bfcabf4e0105e433159d9ba3d2e19 Mon Sep 17 00:00:00 2001
-Message-ID: <d87c8ba7942bfcabf4e0105e433159d9ba3d2e19.1793838246.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838246.git.mitakidisnikos@gmail.com>
-References: <cover.1793838246.git.mitakidisnikos@gmail.com>
+From 069f5fa1df539cbc59e35c7d3371b4921fde5735 Mon Sep 17 00:00:00 2001
+Message-ID: <069f5fa1df539cbc59e35c7d3371b4921fde5735.1793838736.git.mitakidisnikos@gmail.com>
+In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
+References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 03/22] ALSA: hda/ca0132: no jack detection on the AE-9
@@ -21,10 +21,10 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 17 insertions(+)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index a856bac..af96f7d 100644
+index 99d9e4d..e15600d 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
-@@ -11301,6 +11301,23 @@ static void ca0132_config(struct hda_codec *codec)
+@@ -11687,6 +11687,23 @@ static void ca0132_config(struct hda_codec *codec)
  		break;
  	}
  

@@ -1,7 +1,7 @@
-From 6166fdb62d430f4a37f762d08f9e6cdb9c9ff338 Mon Sep 17 00:00:00 2001
-Message-ID: <cover.1793838246.git.mitakidisnikos@gmail.com>
+From a6001fb7999dce42db95525b1229fee77a6fa3ad Mon Sep 17 00:00:00 2001
+Message-ID: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
-Date: Thu, 5 Nov 2026 02:24:06 +0200
+Date: Thu, 5 Nov 2026 02:32:15 +0200
 Subject: [PATCH 00/22] ALSA: hda/ca0132: add Sound Blaster AE-9 support
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -12,9 +12,10 @@ This series adds support for the Creative Sound Blaster AE-9 (PCI
 headphone DAC, a SABRE9006 line-out DAC and the external Audio Control
 Module (ACM).
 
-It is based on Linux v7.2.  The first patch is the base bring-up; the
-rest are split by feature so the hardware protocol can be reviewed in
-order:
+It is based on the current sound.git for-next branch (Linux v7.2 plus
+the later ca0132 changes, including the AE-5 LED strip work).  The first
+patch is the base bring-up; the rest are split by feature so the
+hardware protocol can be reviewed in order:
 
   - base quirk, PCI/pincfg, the Windows-style DSP/PLL/DAC/GPIO bring-up,
     the output-connect overlay and the ACM UART service;

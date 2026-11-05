@@ -1,7 +1,7 @@
-From 76786d50b4eac319a92e40a0836100028d4d9551 Mon Sep 17 00:00:00 2001
-Message-ID: <76786d50b4eac319a92e40a0836100028d4d9551.1793838246.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838246.git.mitakidisnikos@gmail.com>
-References: <cover.1793838246.git.mitakidisnikos@gmail.com>
+From f5de0581b2f075d5c5c051e3bce61bb1629936ec Mon Sep 17 00:00:00 2001
+Message-ID: <f5de0581b2f075d5c5c051e3bce61bb1629936ec.1793838736.git.mitakidisnikos@gmail.com>
+In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
+References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:39 +0200
 Subject: [PATCH 19/22] ALSA: hda/ca0132: AE-9: share the headphone and
@@ -23,10 +23,10 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 47 insertions(+), 8 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 39c6b12..f6767cf 100644
+index 2e03df1..1637fee 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
-@@ -7474,6 +7474,10 @@ static const char * const ca0132_alt_follower_pfxs[] = {
+@@ -7494,6 +7494,10 @@ static const char * const ca0132_alt_follower_pfxs[] = {
  	"Front", "Surround", "Center", "LFE", NULL,
  };
  
@@ -37,7 +37,7 @@ index 39c6b12..f6767cf 100644
  /*
   * Also need special channel map, because the default one is incorrect.
   * I think this has to do with the pin for rear surround being 0x11,
-@@ -7564,6 +7568,17 @@ static const struct snd_kcontrol_new desktop_mixer[] = {
+@@ -7584,6 +7588,17 @@ static const struct snd_kcontrol_new desktop_mixer[] = {
  	{ } /* end */
  };
  
@@ -55,7 +55,7 @@ index 39c6b12..f6767cf 100644
  /*
   * Same as the Sound Blaster Z, except doesn't use the alt volume for capture
   * because it doesn't set decibel levels for the DSP for capture.
-@@ -7586,6 +7601,15 @@ static const struct snd_kcontrol_new r3di_mixer[] = {
+@@ -7606,6 +7621,15 @@ static const struct snd_kcontrol_new r3di_mixer[] = {
  	{ } /* end */
  };
  
@@ -71,7 +71,7 @@ index 39c6b12..f6767cf 100644
  static int ca0132_build_controls(struct hda_codec *codec)
  {
  	struct ca0132_spec *spec = codec->spec;
-@@ -7600,17 +7624,28 @@ static int ca0132_build_controls(struct hda_codec *codec)
+@@ -7620,17 +7644,28 @@ static int ca0132_build_controls(struct hda_codec *codec)
  	}
  	/* Setup vmaster with surround followers for desktop ca0132 devices */
  	if (ca0132_use_alt_functions(spec)) {
@@ -102,7 +102,7 @@ index 39c6b12..f6767cf 100644
  	}
  
  	/* Add in and out effects controls.
-@@ -9787,10 +9822,11 @@ static void ae9_acm_display(struct ca0132_spec *spec, const char *txt)
+@@ -10170,10 +10205,11 @@ static void ae9_acm_display(struct ca0132_spec *spec, const char *txt)
  	ae9_acm_display_frame(spec, txt, true);
  }
  
@@ -118,7 +118,7 @@ index 39c6b12..f6767cf 100644
   */
  static long ae9_master_level(struct hda_codec *codec, struct snd_kcontrol **kctlp)
  {
-@@ -10226,7 +10262,7 @@ static void ae9_acm_knob(struct hda_codec *codec)
+@@ -10609,7 +10645,7 @@ static void ae9_acm_knob(struct hda_codec *codec)
  		return;
  	uctl->value.integer.value[0] = v;
  	uctl->value.integer.value[1] = v;
@@ -127,7 +127,7 @@ index 39c6b12..f6767cf 100644
  	kfree(uctl);
  	snd_ctl_notify(codec->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
  	spec->ae9_acm_disp_dirty = true;
-@@ -12191,7 +12227,10 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -12577,7 +12613,10 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  		snd_hda_codec_set_name(codec, "Sound BlasterX AE-5");
  		break;
  	case QUIRK_AE9:

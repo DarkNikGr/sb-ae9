@@ -1,7 +1,7 @@
-From 19fa210d5b254b22bbcb3d0cd8577d967c6d9551 Mon Sep 17 00:00:00 2001
-Message-ID: <19fa210d5b254b22bbcb3d0cd8577d967c6d9551.1793838246.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838246.git.mitakidisnikos@gmail.com>
-References: <cover.1793838246.git.mitakidisnikos@gmail.com>
+From 30768f6bb8f46c7d5a0885a89c867e7fea87d1cf Mon Sep 17 00:00:00 2001
+Message-ID: <30768f6bb8f46c7d5a0885a89c867e7fea87d1cf.1793838736.git.mitakidisnikos@gmail.com>
+In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
+References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 17/22] ALSA: hda/ca0132: AE-9: bound the knob and button UART
@@ -26,10 +26,10 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 83 insertions(+), 2 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index a7ed681..20160bf 100644
+index e9c8e65..9f8241a 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
-@@ -1214,6 +1214,8 @@ struct ca0132_spec {
+@@ -1217,6 +1217,8 @@ struct ca0132_spec {
  	int ae9_knob_dir;		/* last encoder direction seen (Windows: board+0x288) */
  	bool ae9_dsp_vol_zeroed;	/* DSP output volume parked at 0 dB */
  	bool ae9_acm_regs_logged;	/* first periodic ACM register check logged */
@@ -38,7 +38,7 @@ index a7ed681..20160bf 100644
  	int ae9_acm_dead_ticks;		/* consecutive keepalive probes unanswered */
  	int ae9_acm_sel;		/* module output selector bits (items 5/6) */
  
-@@ -9547,6 +9549,83 @@ static void ae9_acm_tx(struct ca0132_spec *spec, const u8 *p, int n)
+@@ -9930,6 +9932,83 @@ static void ae9_acm_tx(struct ca0132_spec *spec, const u8 *p, int n)
  	}
  }
  
@@ -122,7 +122,7 @@ index a7ed681..20160bf 100644
  static int ae9_acm_rx(struct ca0132_spec *spec, u8 *buf, int max, int first_wait_ms)
  {
  	void __iomem *b2 = spec->mem_base;
-@@ -9734,7 +9813,8 @@ static int ae9_acm_button(struct ca0132_spec *spec, int n)
+@@ -10117,7 +10196,8 @@ static int ae9_acm_button(struct ca0132_spec *spec, int n)
  	u8 rx[8];
  	int got;
  
@@ -132,7 +132,7 @@ index a7ed681..20160bf 100644
  	got = ae9_acm_rx(spec, rx, sizeof(rx), 30);
  	if (got < 5 || rx[0] != 0xf0 || rx[3] != n || rx[4] != 1)
  		return 0;
-@@ -10000,7 +10080,8 @@ static void ae9_acm_knob(struct hda_codec *codec)
+@@ -10383,7 +10463,8 @@ static void ae9_acm_knob(struct hda_codec *codec)
  	int n, dir, steps, delta;
  	long v;
  

@@ -526,7 +526,7 @@ and read Hazard 5.
 ```
 driver/ca0132/      codec driver (kernel ca0132.c + AE-9 support)
 driver/hda-core/    kernel HDA core + the posted-write fix, built as an override
-patches/            upstream series against Linux v7.2 (see patches/README.md)
+patches/            upstream series against sound.git for-next (see patches/README.md)
 tools/              ae9-fx GUI, firmware extractor, report collector,
                     S/PDIF loopback test, acm-tool
 install/            modprobe options, PipeWire sources, WirePlumber names,
@@ -536,11 +536,12 @@ docs/               investigation log, protocol notes, register captures
 
 ## Upstream status
 
-`patches/` is the upstream-shaped series against Linux v7.2.  The HDA-core
-fix is generic; the codec support is split into 22 feature patches in
-`patches/series/` (plus a cover letter).  All patches pass `checkpatch.pl`
-and the series builds against the 7.2 headers.  The out-of-tree tree keeps
-a scoped version of the core readback because its DKMS module replaces
+`patches/` is the upstream-shaped series against the current sound.git
+`for-next` branch.  The HDA-core fix is generic; the codec support is split
+into 22 feature patches in `patches/series/` (plus a cover letter).  All
+patches pass `checkpatch.pl` and the series applies to a clean `for-next`
+tree and builds against the 7.2 headers.  The out-of-tree tree keeps a
+scoped version of the core readback because its DKMS module replaces
 `snd-hda-core` for every controller.  See `patches/README.md`.
 
 ---

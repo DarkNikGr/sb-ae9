@@ -1,7 +1,7 @@
-From 73e66c12df311826d442ced9c89e73ff1418fcc5 Mon Sep 17 00:00:00 2001
-Message-ID: <73e66c12df311826d442ced9c89e73ff1418fcc5.1793838246.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838246.git.mitakidisnikos@gmail.com>
-References: <cover.1793838246.git.mitakidisnikos@gmail.com>
+From 4e44a1086c2dae5ffd6de260107f9b0f283b35b4 Mon Sep 17 00:00:00 2001
+Message-ID: <4e44a1086c2dae5ffd6de260107f9b0f283b35b4.1793838736.git.mitakidisnikos@gmail.com>
+In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
+References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 06/22] ALSA: hda/ca0132: keep AE-9 capture opt-in
@@ -19,10 +19,10 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 31 insertions(+), 6 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 3770b7f..2070205 100644
+index 89dec9d..f510245 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
-@@ -28,7 +28,17 @@
+@@ -29,7 +29,17 @@
   */
  static int ae9_acm_poll = 1;
  module_param(ae9_acm_poll, int, 0644);
@@ -41,7 +41,7 @@ index 3770b7f..2070205 100644
  #include <asm/io.h>
  #include <sound/core.h>
  #include <sound/hda_codec.h>
-@@ -7607,6 +7617,12 @@ static const struct hda_pcm_stream ca0132_pcm_digital_capture = {
+@@ -7631,6 +7641,12 @@ static const struct hda_pcm_stream ca0132_pcm_digital_capture = {
  	.channels_max = 2,
  };
  
@@ -54,7 +54,7 @@ index 3770b7f..2070205 100644
  static int ca0132_build_pcms(struct hda_codec *codec)
  {
  	struct ca0132_spec *spec = codec->spec;
-@@ -7624,6 +7640,10 @@ static int ca0132_build_pcms(struct hda_codec *codec)
+@@ -7648,6 +7664,10 @@ static int ca0132_build_pcms(struct hda_codec *codec)
  	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->dacs[0];
  	info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max =
  		spec->multiout.max_channels;
@@ -65,7 +65,7 @@ index 3770b7f..2070205 100644
  	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0132_pcm_analog_capture;
  	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
  	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[0];
-@@ -7646,7 +7666,8 @@ static int ca0132_build_pcms(struct hda_codec *codec)
+@@ -7670,7 +7690,8 @@ static int ca0132_build_pcms(struct hda_codec *codec)
  	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
  	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[2];
  
@@ -75,7 +75,7 @@ index 3770b7f..2070205 100644
  		return 0;
  
  	info = snd_hda_codec_pcm_new(codec, "CA0132 Digital");
-@@ -7658,7 +7679,7 @@ static int ca0132_build_pcms(struct hda_codec *codec)
+@@ -7682,7 +7703,7 @@ static int ca0132_build_pcms(struct hda_codec *codec)
  			ca0132_pcm_digital_playback;
  		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->dig_out;
  	}
@@ -84,7 +84,7 @@ index 3770b7f..2070205 100644
  		info->stream[SNDRV_PCM_STREAM_CAPTURE] =
  			ca0132_pcm_digital_capture;
  		info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in;
-@@ -7672,6 +7693,10 @@ static int dbpro_build_pcms(struct hda_codec *codec)
+@@ -7696,6 +7717,10 @@ static int dbpro_build_pcms(struct hda_codec *codec)
  	struct ca0132_spec *spec = codec->spec;
  	struct hda_pcm *info;
  
@@ -95,7 +95,7 @@ index 3770b7f..2070205 100644
  	info = snd_hda_codec_pcm_new(codec, "CA0132 Alt Analog");
  	if (!info)
  		return -ENOMEM;
-@@ -7679,8 +7704,8 @@ static int dbpro_build_pcms(struct hda_codec *codec)
+@@ -7703,8 +7728,8 @@ static int dbpro_build_pcms(struct hda_codec *codec)
  	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
  	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[0];
  
@@ -106,7 +106,7 @@ index 3770b7f..2070205 100644
  		return 0;
  
  	info = snd_hda_codec_pcm_new(codec, "CA0132 Digital");
-@@ -7692,7 +7717,7 @@ static int dbpro_build_pcms(struct hda_codec *codec)
+@@ -7716,7 +7741,7 @@ static int dbpro_build_pcms(struct hda_codec *codec)
  			ca0132_pcm_digital_playback;
  		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->dig_out;
  	}

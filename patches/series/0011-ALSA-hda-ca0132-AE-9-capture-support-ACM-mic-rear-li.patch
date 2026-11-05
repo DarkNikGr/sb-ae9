@@ -1,7 +1,7 @@
-From bca0cccf82b0c5f4d22dee00b7ecde638f0c3bef Mon Sep 17 00:00:00 2001
-Message-ID: <bca0cccf82b0c5f4d22dee00b7ecde638f0c3bef.1793838246.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838246.git.mitakidisnikos@gmail.com>
-References: <cover.1793838246.git.mitakidisnikos@gmail.com>
+From 721bc007bdef9eb2fde326adf6965d12053cb80e Mon Sep 17 00:00:00 2001
+Message-ID: <721bc007bdef9eb2fde326adf6965d12053cb80e.1793838736.git.mitakidisnikos@gmail.com>
+In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
+References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 11/22] ALSA: hda/ca0132: AE-9 capture support (ACM mic + rear
@@ -28,10 +28,10 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 17 insertions(+), 3 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 0563ecd..a3f90b5 100644
+index 827ba24..17ff384 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
-@@ -51,7 +51,16 @@ MODULE_PARM_DESC(ae9_out_mute, "AE-9: mute the unselected output when switching
+@@ -52,7 +52,16 @@ MODULE_PARM_DESC(ae9_out_mute, "AE-9: mute the unselected output when switching
  
  static bool ae9_capture;
  module_param(ae9_capture, bool, 0444);
@@ -49,7 +49,7 @@ index 0563ecd..a3f90b5 100644
  #include <asm/io.h>
  #include <sound/core.h>
  #include <sound/hda_codec.h>
-@@ -7639,9 +7648,10 @@ static inline bool ae9_capture_blocked(struct hda_codec *codec)
+@@ -7663,9 +7672,10 @@ static inline bool ae9_capture_blocked(struct hda_codec *codec)
  	 * in; that path is safe and stays available. ae9_capture=1 lifts the
  	 * block on the main codec for experiments.
  	 */
@@ -62,7 +62,7 @@ index 0563ecd..a3f90b5 100644
  static int ca0132_build_pcms(struct hda_codec *codec)
  {
  	struct ca0132_spec *spec = codec->spec;
-@@ -9926,12 +9936,16 @@ static void ae9_setup_defaults(struct hda_codec *codec)
+@@ -10309,12 +10319,16 @@ static void ae9_setup_defaults(struct hda_codec *codec)
  	 * all be in place before any stream runs.
  	 */
  	ae9_dsp_scp_startup(codec);		/* W1: DSP master-control "go" */

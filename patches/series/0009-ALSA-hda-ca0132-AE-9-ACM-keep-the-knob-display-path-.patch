@@ -1,7 +1,7 @@
-From a7f0e113b865b6a4f48aec0b669cc72d1e8ebb66 Mon Sep 17 00:00:00 2001
-Message-ID: <a7f0e113b865b6a4f48aec0b669cc72d1e8ebb66.1793838246.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838246.git.mitakidisnikos@gmail.com>
-References: <cover.1793838246.git.mitakidisnikos@gmail.com>
+From f1e48eb0024e2ff0c32b80658eff779fddb5232b Mon Sep 17 00:00:00 2001
+Message-ID: <f1e48eb0024e2ff0c32b80658eff779fddb5232b.1793838736.git.mitakidisnikos@gmail.com>
+In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
+References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 09/22] ALSA: hda/ca0132: AE-9 ACM: keep the knob/display path
@@ -20,10 +20,10 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 34 insertions(+), 14 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 464da83..89656c0 100644
+index cf24613..c7968bc 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
-@@ -9383,14 +9383,22 @@ static bool ae9_acm_keepalive(struct ca0132_spec *spec)
+@@ -9766,14 +9766,22 @@ static bool ae9_acm_keepalive(struct ca0132_spec *spec)
  }
  
  /* F0 11 09 <8 ASCII, NUL padded> 00 F7 : display text */
@@ -48,7 +48,7 @@ index 464da83..89656c0 100644
  }
  
  /* 'Master Playback Volume' on the AE-9 is a virtual master whose slave is
-@@ -9450,7 +9458,7 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
+@@ -9833,7 +9841,7 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
  		snprintf(txt, sizeof(txt), "%s%d.%d",
  			 db100 ? "-" : "", db100 / 100,
  			 (db100 % 100) / 10);
@@ -57,7 +57,7 @@ index 464da83..89656c0 100644
  }
  
  /* Push the current Output Select to the ACM's analog mux (§10.6: reg2 bit2 =
-@@ -9793,6 +9801,7 @@ static void ae9_acm_work_fn(struct work_struct *work)
+@@ -10176,6 +10184,7 @@ static void ae9_acm_work_fn(struct work_struct *work)
  	struct ca0132_spec *spec = container_of(to_delayed_work(work),
  						struct ca0132_spec, ae9_acm_work);
  	struct hda_codec *codec = spec->codec;
@@ -65,7 +65,7 @@ index 464da83..89656c0 100644
  
  	ae9_gpio_cmd(spec, 0x0105);
  	if (!spec->ae9_acm_present) {
-@@ -9809,26 +9818,37 @@ static void ae9_acm_work_fn(struct work_struct *work)
+@@ -10192,26 +10201,37 @@ static void ae9_acm_work_fn(struct work_struct *work)
  	if (!ae9_acm_poll)
  		return;			/* parked at runtime via /sys/module/.../parameters */
  	spec->ae9_acm_tick++;

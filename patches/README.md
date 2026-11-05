@@ -1,7 +1,8 @@
 # Upstream patch series
 
 These patches are the upstream-shaped version of the AE-9 work, based on
-**Linux v7.2** (the `v7.2` tag).  Apply them in order:
+the current **sound.git `for-next`** branch (Linux v7.2 plus the later
+ca0132 changes, including the AE-5 LED strip work).  Apply them in order:
 
 1. `0001-ALSA-hda-flush-posted-writes-around-the-command-ring.patch`
    — generic HDA-core posted-write flush.  The AE-9 needs it; without it
@@ -14,9 +15,9 @@ Both pass `scripts/checkpatch.pl --no-tree` (0 errors, 0 warnings) and the
 resulting sources build against the 7.2.14 kernel headers.
 
 The split submission series is in `series/`: 22 patches plus a cover
-letter, all checkpatch-clean and based on v7.2.  It follows the feature
-order below.  `0002` above is the same code squashed into one patch for a
-quick read.
+letter, all checkpatch-clean and based on the current `for-next`.  It
+follows the feature order below.  `0002` above is the same code squashed
+into one patch for a quick read.
 
 - base quirk, PCI table, pin configuration and the Windows-style bring-up;
 - DSP loader, ASI/PLL, the output-connect overlay and the 8051 hooks;

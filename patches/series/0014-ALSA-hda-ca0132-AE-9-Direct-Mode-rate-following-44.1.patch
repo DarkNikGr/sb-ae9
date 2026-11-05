@@ -1,7 +1,7 @@
-From ac048eb8f472919673b3801d6b3e0c40c0abe0f9 Mon Sep 17 00:00:00 2001
-Message-ID: <ac048eb8f472919673b3801d6b3e0c40c0abe0f9.1793838246.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838246.git.mitakidisnikos@gmail.com>
-References: <cover.1793838246.git.mitakidisnikos@gmail.com>
+From 5edc1eb1a22bc3e1be429024b4c362b11652a2fa Mon Sep 17 00:00:00 2001
+Message-ID: <5edc1eb1a22bc3e1be429024b4c362b11652a2fa.1793838736.git.mitakidisnikos@gmail.com>
+In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
+References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 14/22] ALSA: hda/ca0132: AE-9: Direct Mode rate following
@@ -47,10 +47,10 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 97 insertions(+)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index ddfa8fa..f554581 100644
+index 75b1328..fc2e5d4 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
-@@ -61,6 +61,16 @@ MODULE_PARM_DESC(ae9_capture, "AE-9: expose capture streams on the MAIN codec (D
+@@ -62,6 +62,16 @@ MODULE_PARM_DESC(ae9_capture, "AE-9: expose capture streams on the MAIN codec (D
  static bool ae9_mic;
  module_param(ae9_mic, bool, 0444);
  MODULE_PARM_DESC(ae9_mic, "AE-9: initialise the DSP mic path (experimental, default 0)");
@@ -67,7 +67,7 @@ index ddfa8fa..f554581 100644
  #include <asm/io.h>
  #include <sound/core.h>
  #include <sound/hda_codec.h>
-@@ -4155,6 +4165,7 @@ static void r3di_gpio_dsp_status_set(struct hda_codec *codec,
+@@ -4165,6 +4175,7 @@ static void r3di_gpio_dsp_status_set(struct hda_codec *codec,
   * PCM callbacks
   */
  static void ae9_dump_dsp_output_state(struct hda_codec *codec, const char *when);
@@ -75,7 +75,7 @@ index ddfa8fa..f554581 100644
  
  static int ca0132_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
  			struct hda_codec *codec,
-@@ -4164,6 +4175,10 @@ static int ca0132_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
+@@ -4174,6 +4185,10 @@ static int ca0132_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
  {
  	struct ca0132_spec *spec = codec->spec;
  
@@ -86,7 +86,7 @@ index ddfa8fa..f554581 100644
  	snd_hda_codec_setup_stream(codec, spec->dacs[0], stream_tag, 0, format);
  
  	/*
-@@ -4194,6 +4209,10 @@ static int ca0132_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
+@@ -4204,6 +4219,10 @@ static int ca0132_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
  
  	snd_hda_codec_cleanup_stream(codec, spec->dacs[0]);
  
@@ -97,7 +97,7 @@ index ddfa8fa..f554581 100644
  	return 0;
  }
  
-@@ -7682,6 +7701,18 @@ static int ca0132_build_pcms(struct hda_codec *codec)
+@@ -7706,6 +7725,18 @@ static int ca0132_build_pcms(struct hda_codec *codec)
  	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->dacs[0];
  	info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max =
  		spec->multiout.max_channels;
@@ -116,7 +116,7 @@ index ddfa8fa..f554581 100644
  	if (ae9_capture_blocked(codec)) {
  		codec_info(codec, "AE-9: capture streams not created (ae9_capture=0)\n");
  		goto digital;
-@@ -8863,6 +8894,72 @@ static void ae9_pll_set(struct hda_codec *codec)
+@@ -9246,6 +9277,72 @@ static void ae9_pll_set(struct hda_codec *codec)
  		chipio_8051_write_pll_pmu(codec, addr[i], data[i]);
  }
  
