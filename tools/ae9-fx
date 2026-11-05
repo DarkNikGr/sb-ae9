@@ -1133,7 +1133,32 @@ class Win(Adw.ApplicationWindow):
 
     def _on_tick(self):
         self.refresh_format()
+        self.sync_combos()
         return True
+
+    def sync_combos(self):
+        """Follow the ACM/knob and the sync service.
+
+        The driver updates the ALSA control when the knob changes the
+        output; without this poll the combo would keep showing the value
+        from the last manual reload.
+        """
+        for name in ("AE-9 Output", "Surround Channel Config"):
+            slot = self.widgets.get(name)
+            combo = slot.get("combo") if slot else None
+            if combo is None:
+                continue
+            try:
+                st = read(name)
+            except RuntimeError:
+                continue
+            if st["item"] not in st["items"]:
+                continue
+            idx = st["items"].index(st["item"])
+            if combo.get_selected() != idx:
+                self.loading = True
+                combo.set_selected(idx)
+                self.loading = False
 
     def _on_close(self, *_args):
         if getattr(self, "_tick", None) is not None:

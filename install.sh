@@ -65,10 +65,14 @@ install -D -m 755 "$SRC/install/ae9-resume.sh" /usr/local/libexec/sb-ae9/ae9-res
 install -D -m 755 "$SRC/install/ae9-resume-sleep" /usr/lib/systemd/system-sleep/50-ae9-resume
 install -D -m 755 "$SRC/install/ae9-unmute.sh" /usr/local/libexec/sb-ae9/ae9-unmute.sh
 install -D -m 644 "$SRC/install/ae9-unmute.service" "$home/.config/systemd/user/ae9-unmute.service"
+install -D -m 755 "$SRC/install/ae9-profile-sync.sh" /usr/local/libexec/sb-ae9/ae9-profile-sync.sh
+install -D -m 644 "$SRC/install/ae9-profile-sync.service" "$home/.config/systemd/user/ae9-profile-sync.service"
 chown -R "$usr:" "$home/.config/systemd"
 sudo -u "$usr" XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user daemon-reload 2>/dev/null || true
 sudo -u "$usr" XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user enable ae9-defaults.service 2>/dev/null || true
 sudo -u "$usr" XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user enable ae9-unmute.service 2>/dev/null || true
+sudo -u "$usr" XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user enable ae9-profile-sync.service 2>/dev/null || true
+sudo -u "$usr" XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user restart ae9-profile-sync.service 2>/dev/null || true
 
 # The GUI is part of the driver: always replace the per-user copy so a
 # stale control list cannot keep the window from opening after an update.

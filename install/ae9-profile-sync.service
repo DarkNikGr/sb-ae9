@@ -1,0 +1,12 @@
+[Unit]
+Description=Sound Blaster AE-9 output profile / speaker layout sync
+After=pipewire.service wireplumber.service ae9-defaults.service
+Wants=pipewire.service wireplumber.service
+
+[Service]
+ExecStart=/usr/local/libexec/sb-ae9/ae9-profile-sync.sh
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
