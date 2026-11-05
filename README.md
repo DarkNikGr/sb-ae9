@@ -382,6 +382,10 @@ Master 65, Headphone output, effects off). The Format page refreshes every 2 s.
 
 Dependencies (Fedora): `python3-gobject gtk4 libadwaita`.
 
+`sudo ./install.sh` installs `ae9-fx` to `~/.local/bin/ae9-fx` and the
+application-grid entry to `~/.local/share/applications/ae9-fx.desktop`, so the
+installed copy always matches the driver. For a manual install:
+
 ```sh
 install -Dm755 tools/ae9-fx ~/.local/bin/ae9-fx
 ae9-fx
@@ -389,9 +393,6 @@ ae9-fx
 
 `ae9-fx --selftest` prints every control it reads without opening a window — the
 quickest way to tell a GUI bug from a driver state.
-
-For an application-grid entry, create `~/.local/share/applications/ae9-fx.desktop`
-with an absolute `Exec=` path; the file header in `tools/ae9-fx` has a ready snippet.
 
 ---
 
@@ -558,7 +559,8 @@ patches/            upstream series against sound.git for-next (see patches/READ
 tools/              ae9-fx GUI, selftest, firmware extractor, report collector,
                     S/PDIF loopback test, acm-tool
 install/            modprobe options, PipeWire sources, WirePlumber names,
-                    udev name rule, session defaults, unmute/resume hooks
+                    udev name rule, session defaults, GUI desktop entry,
+                    unmute/resume hooks
 .github/            CI: checkpatch, patch application, lint and module builds
 docs/               investigation log, protocol notes, register captures
 ```

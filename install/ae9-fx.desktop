@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Sound Blaster AE-9
+GenericName=Audio Mixer
+Comment=Volume, output, SBX effects, Direct Mode and DAC filters for the AE-9
+Exec=@HOME@/.local/bin/ae9-fx
+TryExec=@HOME@/.local/bin/ae9-fx
+Icon=multimedia-volume-control
+Terminal=false
+Categories=AudioVideo;Audio;Mixer;
+Keywords=ae9;sound;blaster;creative;sbx;mixer;direct;dac;
+StartupNotify=true

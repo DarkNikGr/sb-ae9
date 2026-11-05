@@ -70,6 +70,15 @@ sudo -u "$usr" XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user daemon-reload 2
 sudo -u "$usr" XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user enable ae9-defaults.service 2>/dev/null || true
 sudo -u "$usr" XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user enable ae9-unmute.service 2>/dev/null || true
 
+# The GUI is part of the driver: always replace the per-user copy so a
+# stale control list cannot keep the window from opening after an update.
+install -D -m 755 "$SRC/tools/ae9-fx" "$home/.local/bin/ae9-fx"
+install -D -m 644 "$SRC/install/ae9-fx.desktop" "$home/.local/share/applications/ae9-fx.desktop"
+sed -i "s|@HOME@|$home|g" "$home/.local/share/applications/ae9-fx.desktop"
+chown "$usr:" "$home/.local/bin/ae9-fx" "$home/.local/share/applications/ae9-fx.desktop"
+command -v update-desktop-database >/dev/null 2>&1 &&
+	sudo -u "$usr" update-desktop-database "$home/.local/share/applications" >/dev/null 2>&1 || true
+
 echo "== 5/5 checks =="
 if [ -d /sys/firmware/efi ] && command -v mokutil >/dev/null && mokutil --sb-state 2>/dev/null | grep -q enabled; then
   echo "Secure Boot is ON: DKMS signs modules with its own key; enrol it once if not done (see README: 'Secure Boot')."
