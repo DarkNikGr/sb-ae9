@@ -371,6 +371,16 @@ case "$direct" in
 	*) warn "Direct Mode" "not readable" ;;
 esac
 
+# The AE-9's IEM/Normal/High gain is the analog switch on the ACM.  The
+# AE-5/AE-7 software trim must not be exposed here, and the DAC must not be
+# attenuated on top of the switch.
+if amixer -c "$CARDNUM" controls 2>/dev/null |
+		grep -Fq "name='AE-5: Headphone Gain'"; then
+	warn "headphone gain" "software DAC trim exposed (expected the ACM switch)"
+else
+	info "headphone gain" "hardware ACM IEM/Normal/High switch; DAC trim at 0 dB"
+fi
+
 acm=$(journalctl -k -b --no-pager 2>/dev/null | grep -m1 'ACM.*(present\|online\|ready)' || true)
 if [ -n "$acm" ]; then
 	pass "ACM" "$(printf '%s' "$acm" | sed 's/.*AE-9: //')"

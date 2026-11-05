@@ -91,6 +91,16 @@ def find_numid(name):
     raise RuntimeError(f"control not found: {name}")
 
 
+def has_ctl(name):
+    """True when the card exposes this control (the AE-9 has no software
+    headphone gain: the 3-position switch on the ACM owns it)."""
+    try:
+        find_numid(name)
+        return True
+    except RuntimeError:
+        return False
+
+
 def read_numid(name):
     """Fallback reader for capture controls: sget fails while PipeWire owns
     the capture device, but cget on the card always works."""
@@ -876,23 +886,24 @@ class Win(Adw.ApplicationWindow):
     def page_dac(self, page):
         g = Adw.PreferencesGroup(title="DAC filters")
         self.add_combo(g, None, "AE-5: Sound Filter", "Oversampling filter")
-        self.add_combo(g, None, "AE-5: Headphone Gain", "Headphone gain",
-                       "DAC master trim, not the analog IEM/Normal/High stage")
+        if has_ctl("AE-5: Headphone Gain"):
+            self.add_combo(g, None, "AE-5: Headphone Gain", "Headphone gain",
+                           "DAC master trim (AE-5/AE-7 only)")
         page.add(g)
 
-        g2 = Adw.PreferencesGroup(title="About the gain control")
+        g2 = Adw.PreferencesGroup(title="Headphone gain")
+        self.add_note(
+            g2,
+            "On the AE-9 the IEM / N / HIGH gain is the 3-position switch on "
+            "the ACM. It is an analog stage and the driver cannot change it. "
+            "The ES9038Q2M trims stay at 0 dB, so leave the switch at the "
+            "position that matches your headphones and use Master for level.",
+            "audio-headphones-symbolic")
         self.add_note(
             g2,
             "Capture is on its own page now: the ACM microphone (device 0) and "
             "the rear line-in (device 4) work.",
             "dialog-information-symbolic")
-        self.add_note(
-            g2,
-            "Headphone Gain writes the ES9038Q2M master-trim registers. "
-            "Confirmed on the AE-9: Low is audibly quieter than High. It is a "
-            "digital level, not the analog IEM/Normal/High amp stage. With "
-            "sensitive IEMs start at Low. If nothing changes, the driver did "
-            "not apply it.")
         page.add(g2)
 
     def page_capture(self, page):
@@ -1203,7 +1214,7 @@ def selftest():
         "Surround Channel Config", "Full-Range Front Speakers",
         "Full-Range Rear Speakers", "Bass Redirection",
         "Bass Redirection Crossover", "AE-5: Sound Filter",
-        "AE-5: Headphone Gain", "FX: Smart Volume Setting",
+        "FX: Smart Volume Setting",
         "FX: X-Bass Crossover", "FX: Equalizer Preset", "EQ Band0",
         "Input Source", "Enable InFX Capture Switch",
         "FX: Voice Focus Capture Switch", "FX: Noise Reduction Capture Switch",
@@ -1211,6 +1222,8 @@ def selftest():
         "VoiceFX Capture Switch", "Capture", "Mic Boost", "What U Hear",
         "IEC958 Playback Switch", "IEC958 Capture Switch",
     ]
+    if has_ctl("AE-5: Headphone Gain"):
+        names.append("AE-5: Headphone Gain")
     for n in names:
         try:
             st = read(n)

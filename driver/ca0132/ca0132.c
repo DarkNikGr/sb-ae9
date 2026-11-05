@@ -5023,18 +5023,26 @@ static int ca0132_alt_select_out_quirk_set(struct hda_codec *codec)
 	}
 
 	if (quirk_data->has_headphone_gain) {
-		if (spec->cur_out_type != HEADPHONE_OUT) {
-			if (quirk_data->is_ae_series)
+		if (quirk_data->is_ae_series) {
+			/*
+			 * The AE-9 selects its headphone gain with the
+			 * 3-position IEM/Normal/High switch on the ACM; the
+			 * host side has no control over that stage.  Windows
+			 * keeps the ES9038 front-channel trims at 0 dB on
+			 * this card, so do the same and never attenuate the
+			 * DAC on top of the hardware switch.
+			 */
+			if (ca0132_quirk(spec) == QUIRK_AE9)
+				ae5_headphone_gain_set(codec, 2);
+			else if (spec->cur_out_type != HEADPHONE_OUT)
 				ae5_headphone_gain_set(codec, 2);
 			else
-				zxr_headphone_gain_set(codec, 0);
-		} else {
-			if (quirk_data->is_ae_series)
 				ae5_headphone_gain_set(codec,
 						spec->ae5_headphone_gain_val);
-			else
-				zxr_headphone_gain_set(codec,
-						spec->zxr_gain_set);
+		} else {
+			zxr_headphone_gain_set(codec,
+					spec->cur_out_type == HEADPHONE_OUT ?
+					spec->zxr_gain_set : 0);
 		}
 	}
 
@@ -6183,7 +6191,7 @@ static int ca0132_alt_mic_boost_put(struct snd_kcontrol *kcontrol,
 static int ae5_headphone_gain_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
 {
-	const char *sfx = " Ohms)";
+	const char *sfx = "Ohms)";
 	char namestr[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
@@ -7724,11 +7732,12 @@ static int ca0132_build_controls(struct hda_codec *codec)
 
 	switch (ca0132_quirk(spec)) {
 	case QUIRK_AE5:
-	case QUIRK_AE9:
 	case QUIRK_AE7:
 		err = ae5_add_headphone_gain_enum(codec);
 		if (err < 0)
 			return err;
+		fallthrough;
+	case QUIRK_AE9:
 		err = ae5_add_sound_filter_enum(codec);
 		if (err < 0)
 			return err;
@@ -11803,6 +11812,11 @@ static void ca0132_alt_init(struct hda_codec *codec)
 		 * Our RMW landed 0x20: the low 3 bits (port lanes?) were clear. */
 		chipio_read(codec, 0x18b030, &tmp);
 		chipio_write(codec, 0x18b030, 0x00000027);
+		/*
+		 * The ACM's IEM/Normal/High switch owns the gain; keep the
+		 * ES9038 trims at 0 dB like Windows does.
+		 */
+		spec->ae5_headphone_gain_val = 2;
 		break;
 	case QUIRK_AE7:
 		ca0132_gpio_init(codec);

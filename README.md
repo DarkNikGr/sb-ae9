@@ -25,7 +25,7 @@ the machine. Everything runs under plain ALSA, PipeWire and WirePlumber.
 | ACM | Mute (short press, `MUTE` on the display) | Working |
 | ACM | Output toggle (hold 1.5–3 s, `-HP-` / `-SP-`) | Working, exclusive on the tested card |
 | ACM | SBX button and light | Working |
-| ACM | Headphone gain (IEM / Normal / High) | Digital DAC trim only |
+| ACM | Headphone gain (IEM / Normal / High) | Hardware 3-position switch; not software-controlled |
 | ACM | Mic / line input (6.3 mm, XLR) | Working; 48 V phantom not exposed |
 | Card | Playback 44.1 / 48 / 88.2 / 96 / 192 kHz | Working (native rate with Direct Mode) |
 | Card | SBX effects, per-effect switches and levels | Working |
@@ -38,10 +38,12 @@ the machine. Everything runs under plain ALSA, PipeWire and WirePlumber.
 | Card | Suspend / resume | Working, with the installed unmute hook |
 | Card | Direct Mode (follow the stream rate) | Working 44.1–192 kHz, opt-in |
 
-**Not supported:** 48 V phantom power, the analog IEM/Normal/High headphone gain stage
-(the control is a digital trim), AC3/DTS passthrough, and importing a Windows SBX
-profile. 176.4 kHz has no working descriptor; 384 kHz was tested and rejected (the HDA
-link does not carry the 8× rate). **192 kHz is the maximum.**
+**Not supported:** 48 V phantom power, AC3/DTS passthrough, and importing a Windows
+SBX profile. The IEM/Normal/High headphone gain is the 3-position switch on the ACM:
+it is an analog stage, it does not appear in any register, and the driver leaves the
+ES9038Q2M trims at 0 dB (as Windows does) so it is never attenuated twice. 176.4 kHz
+has no working descriptor; 384 kHz was tested and rejected (the HDA link does not
+carry the 8× rate). **192 kHz is the maximum.**
 
 ---
 
@@ -214,9 +216,11 @@ outputs can be audible.
 
 - The control is deliberately **not** called “Output Select”: desktop ALSA profiles
   map that name onto sink ports and rewrite it on every route restore.
-- Headphone gain: `amixer -c Creative sset 'AE-5: Headphone Gain' 'Low (16-31  Ohms)'`
-  (or `Medium` / `High`). This is a digital DAC trim, not the analog amp stage.
-  With sensitive IEMs start at Low.
+- Headphone gain: use the 3-position **IEM / N / HIGH** switch on the ACM. It selects
+  the analog gain stage and is not visible to the host, so there is no ALSA control
+  for it. The driver keeps the ES9038Q2M trims at 0 dB; use Master (or the knob) for
+  level. On an AE-5/AE-7 the equivalent control is still `AE-5: Headphone Gain`
+  because those cards implement it digitally.
 - `HP/Speaker Auto Detect` makes the output follow the **ACM 3.5 mm jack**. The ACM
   firmware does not report the 6.35 mm jack, so switch that one by hand.
 
@@ -368,7 +372,7 @@ No root needed.
 | **Output** | `AE-9 Output`, auto-detect, surround, S/PDIF out/in switches |
 | **Format** | Running format, graph clock, allowed and forced rates, Direct Mode, sample bits, PipeWire restart |
 | **SBX** | Effects master, each processor and level, 10-band EQ |
-| **DAC** | Oversampling filter, headphone gain |
+| **DAC** | Oversampling filter (headphone gain is the ACM switch) |
 | **Capture** | Input source, capture level/switch, mic boost, What U Hear, CrystalVoice and VoiceFX |
 
 The header has **reload** (re-read the card) and **reset** (manufacturer defaults:
@@ -532,6 +536,8 @@ and read Hazard 5.
 |---|---|
 | `acm=3` | UART-only bring-up, safe on a live card |
 | `acmget=<reg>` | Read an ACM register |
+| `acmdump=1` | Read ACM registers 0–31 once |
+| `acmwatch=<seconds>` | Poll registers 0–7 and log every change |
 | `acmset=<reg>,<value>,<mask>` | Write ACM bits |
 | `acmtext=<text>` | Write the display |
 | `raw=f0,22,02,01,00,f7` | Send one frame and print the reply |
