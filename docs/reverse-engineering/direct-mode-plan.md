@@ -217,7 +217,7 @@ Known limitations: 176.4k unsupported; no explicit DAC mute around the re-clock;
 
 Done:
 1. Mixer control `AE-9 Direct Mode` (boolean) bound to the `ae9_direct` state, plus the module parameter — toggling needs no module reload and applies at the next stream start.
-2. GUI (`tools/ae9-fx`, PR #1): **AE-9 Direct Mode** switch on the Format page, a live **Hardware rate** row read from `/proc/asound/<card>/pcm0p/sub0/hw_params`, and SBX switched off when Direct Mode is enabled.
+2. GUI (`tools/ae9-fx`, PR #1): **AE-9 Direct Mode** switch on the Output page, a live **Hardware rate** row read from `/proc/asound/<card>/pcm0p/sub0/hw_params`, and SBX switched off when Direct Mode is enabled.
 3. The analog PCM always advertises 44.1–192 kHz now; the switch only changes whether the chain follows.
 4. README: support matrix, module parameter and GUI notes.
 

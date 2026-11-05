@@ -332,8 +332,8 @@ a separate rate and bit-depth setting for each input:
 | S/PDIF in (device 10) | `alsa_input.ae9_spdif` | 44.1–192 kHz | `20-ae9-inputs.conf` |
 
 The optical output is a separate PCM as well, with its own rate and bit-depth rows on
-the **Output** page (under *S/PDIF output*). The analog format from the Format page
-does not apply to it; this setting is stored for `alsa_output.ae9_spdif` in
+the **Output** page (under *S/PDIF output*). The analog format above does not apply to
+it; this setting is stored for `alsa_output.ae9_spdif` in
 `20-ae9-inputs.conf`. The matching S/PDIF input switch and format rows are on the
 **Input** page. **Auto** follows the graph rate, a fixed value opens that PCM at
 the selected rate and the graph resamples into it.
@@ -342,7 +342,7 @@ Choose **Auto** to leave the ALSA default (`S32LE`, graph rate). A forced rate i
 input's own rate, but PipeWire still has one graph clock: while playing, the output and
 the capture input may be resampled to the graph rate. If you need a capture-only session
 at another rate (for example 96 kHz with nothing playing), use the GUI's **Force rate**
-on the Format page.
+on the Output page.
 
 The microphone and the rear line-in are separate PCM devices. The **Input Source**
 control only switches the main codec's ADC (Microphone / Line In); it does not change the
@@ -468,16 +468,16 @@ No root needed.
 | Page | What it controls |
 |---|---|
 | **Volume** | Master, mute, ACM selector status |
-| **Output** | `AE-9 Output`, auto-detect, surround, S/PDIF output switch and rate/bits |
+| **Output** | `AE-9 Output`, auto-detect, surround, S/PDIF output switch and rate/bits, running format, graph clock, allowed/forced rates, Direct Mode, analog sample bits |
 | **Input** | Separate microphone, line-in, What U Hear and S/PDIF groups, per-input rate/bits, S/PDIF input switch, capture level/switch, mic boost, CrystalVoice and VoiceFX |
-| **Format** | Running format, graph clock, allowed and forced rates, Direct Mode, sample bits, PipeWire restart |
 | **SBX** | Effects master, each processor and level, 10-band EQ |
 | **DAC** | Oversampling filter (headphone gain is the ACM switch) |
 
-The header has **reload** (re-read the card) and **reset** (manufacturer defaults:
-Master 65, Headphone output, effects off). The Format page, `AE-9 Output` and
-`Surround Channel Config` refresh every 2 s, so changes made with the ACM knob or
-from GNOME appear in the window without a manual reload.
+The sidebar's **Restart PipeWire** button (bottom left) applies the saved output and input
+rates/formats from any page. The header has **reload** (re-read the card) and **reset**
+(manufacturer defaults: Master 65, Headphone output, effects off). The Output page,
+`AE-9 Output` and `Surround Channel Config` refresh every 2 s, so changes made with the
+ACM knob or from GNOME appear in the window without a manual reload.
 
 Dependencies (Fedora): `python3-gobject gtk4 libadwaita`.
 

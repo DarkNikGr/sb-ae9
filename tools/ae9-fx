@@ -3,7 +3,7 @@
 
 Drives the ALSA mixer elements of the card (id "Creative") through amixer:
 volume and mute, output selection, the SBX effects, the EQ and the DAC filters.
-The Format page reads the running PCM format, manages PipeWire's allowed
+The Output page reads the running PCM format, manages PipeWire's allowed
 sample rates for the card's analog output and toggles the driver's Direct
 Mode (native-rate playback at 44.1-192 kHz).
 
@@ -189,7 +189,7 @@ def acm_selector():
 
 # ── PipeWire ──────────────────────────────────────────────────────────────────
 
-# Where the rate policy is persisted; the Format page owns this file.
+# Where the rate policy is persisted; the Output page owns this file.
 RATE_CONF = "~/.config/pipewire/pipewire.conf.d/10-ae9-rates.conf"
 # Where the sample format is forced; applies on the next WirePlumber start.
 FORMAT_CONF = "~/.config/wireplumber/wireplumber.conf.d/53-ae9-format.conf"
@@ -643,6 +643,24 @@ class Win(Adw.ApplicationWindow):
         sidebar_toolbar.add_top_bar(sidebar_header)
         sidebar_toolbar.set_content(sidebar_scroll)
 
+        # One global action, at the bottom of the sidebar: it applies the
+        # saved output/input rates and formats on every page.
+        sidebar_bottom = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        sidebar_bottom.set_margin_top(6)
+        sidebar_bottom.set_margin_bottom(6)
+        sidebar_bottom.set_margin_start(6)
+        sidebar_bottom.set_margin_end(6)
+        restart_btn = Gtk.Button()
+        restart_btn.set_child(Adw.ButtonContent(
+            icon_name="view-refresh-symbolic", label="Restart PipeWire"))
+        restart_btn.set_halign(Gtk.Align.START)
+        restart_btn.set_tooltip_text(
+            "Restart PipeWire and WirePlumber; applies the saved rates and formats")
+        restart_btn.connect("clicked", lambda _b: self.do_restart())
+        self.restart_buttons.append(restart_btn)
+        sidebar_bottom.append(restart_btn)
+        sidebar_toolbar.add_bottom_bar(sidebar_bottom)
+
         # Content header: page title plus the two global actions.
         self.content_title = Adw.WindowTitle(title="Volume",
                                              subtitle="Sound Blaster AE-9")
@@ -679,7 +697,6 @@ class Win(Adw.ApplicationWindow):
             ("Volume", "audio-volume-high-symbolic", self.page_level),
             ("Output", "audio-speakers-symbolic", self.page_output),
             ("Input", "audio-input-microphone-symbolic", self.page_capture),
-            ("Format", "audio-x-generic-symbolic", self.page_format),
             ("SBX", "applications-multimedia-symbolic", self.page_fx),
             ("DAC", "audio-card-symbolic", self.page_dac),
         ):
@@ -790,15 +807,6 @@ class Win(Adw.ApplicationWindow):
 
         self.input_rows[key] = {"rate": rate_row, "rates": rates, "fmt": fmt_row}
 
-    def add_restart_row(self, group, subtitle):
-        row = Adw.ActionRow(title="Restart PipeWire", subtitle=subtitle)
-        btn = Gtk.Button(label="Restart")
-        btn.set_valign(Gtk.Align.CENTER)
-        btn.connect("clicked", lambda _b: self.do_restart())
-        row.add_suffix(btn)
-        group.add(row)
-        self.restart_buttons.append(btn)
-
     # ── pages ─────────────────────────────────────────────────────────────────
 
     def page_level(self, page):
@@ -895,8 +903,12 @@ class Win(Adw.ApplicationWindow):
             "port. The optical link is stereo PCM; 5.1 is available on the "
             "analog line-out, not over S/PDIF. The rate/format rows above "
             "belong to this digital PCM only; the analog output keeps its own "
-            "Format-page setting.")
+            "setting below.")
         page.add(g4)
+
+        # The old Format page lives here now: running format, Direct Mode,
+        # sample format, allowed/forced rates and the rate limits.
+        self.page_format(page)
 
     def page_format(self, page):
         g = Adw.PreferencesGroup(title="Running")
@@ -988,15 +1000,6 @@ class Win(Adw.ApplicationWindow):
             "Allowed rates are a PipeWire graph setting: they apply to every "
             "output, not only to the AE-9.")
         page.add(g3)
-
-        gr = Adw.PreferencesGroup(title="PipeWire")
-        self.add_restart_row(gr, "Applies the saved rates and format")
-        self.add_note(
-            gr,
-            "Audio stops for a few seconds. The AE-9 routing and level are "
-            "restored afterwards: WirePlumber's route restore can mute the "
-            "shared output and move the ACM knob.")
-        page.add(gr)
 
     def page_fx(self, page):
         g = Adw.PreferencesGroup(
@@ -1168,14 +1171,6 @@ class Win(Adw.ApplicationWindow):
             "restart; the microphone can do up to 96 kHz, the line-in and "
             "S/PDIF up to 192 kHz.")
         page.add(g2)
-
-        gp = Adw.PreferencesGroup(title="PipeWire")
-        self.add_restart_row(gp, "Applies the saved input rates and formats")
-        self.add_note(
-            gp,
-            "Audio stops for a few seconds. The AE-9 routing and level are "
-            "restored afterwards.")
-        page.add(gp)
 
     # ── handlers ──────────────────────────────────────────────────────────────
 
