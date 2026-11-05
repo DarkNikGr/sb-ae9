@@ -1,5 +1,7 @@
 # Sound Blaster AE-9 — Linux driver
 
+[![ci](https://github.com/DarkNikGr/sb-ae9/actions/workflows/ci.yml/badge.svg)](https://github.com/DarkNikGr/sb-ae9/actions/workflows/ci.yml)
+
 Out-of-tree ALSA driver for the **Creative Sound Blaster AE-9** (PCI `1102:0010`,
 subsystem `1102:0071`): dual CA0132 “Sound Core3D” HDA codecs, an ES9038Q2M headphone
 DAC, a SABRE9006 line-out DAC, and the external **Audio Control Module** (ACM) with its
