@@ -27,7 +27,9 @@ jobs:
       - name: Check the series
         run: |
           set -e
-          for p in patches/series/[0-9][0-9][0-9][0-9]-*.patch; do
+          # Absolute paths: checkpatch treats a relative path with a directory
+          # component as a source file instead of a mailbox patch.
+          for p in "$GITHUB_WORKSPACE"/patches/series/[0-9][0-9][0-9][0-9]-*.patch; do
             case "$p" in
               */0000-cover-letter.patch) continue ;;
             esac
