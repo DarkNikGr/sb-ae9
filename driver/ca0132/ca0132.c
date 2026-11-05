@@ -5134,8 +5134,13 @@ static int __ca0132_alt_select_out(struct hda_codec *codec)
 		snd_hda_codec_write(codec, spec->out_pins[0], 0,
 			AC_VERB_SET_EAPD_BTLENABLE, 0x01);
 
-		/* Disable headphone node. */
-		ca0132_set_out_node_pincfg(codec, spec->out_pins[1], 0, 0);
+		/*
+		 * The AE-9 has no rear headphone jack: pin 0x11 is its rear
+		 * line-out (DAC 0x04), so it must stay enabled in speaker mode.
+		 * On the other cards this pin is the rear headphone output.
+		 */
+		ca0132_set_out_node_pincfg(codec, spec->out_pins[1],
+					   ca0132_quirk(spec) == QUIRK_AE9, 0);
 		/* Set front L-R to output. */
 		ca0132_set_out_node_pincfg(codec, spec->out_pins[0], 1, 0);
 		/* Set Center/LFE to output. */
@@ -5168,13 +5173,22 @@ static int __ca0132_alt_select_out(struct hda_codec *codec)
 		ca0132_set_out_node_pincfg(codec, spec->out_pins[2], 0, 0);
 		ca0132_set_out_node_pincfg(codec, spec->out_pins[3], 0, 0);
 
-		/* enable headphone, either front or rear */
-		if (snd_hda_jack_detect(codec, spec->unsol_tag_front_hp))
-			headphone_nid = spec->out_pins[2];
-		else if (snd_hda_jack_detect(codec, spec->unsol_tag_hp))
-			headphone_nid = spec->out_pins[1];
+		if (ca0132_quirk(spec) == QUIRK_AE9) {
+			/*
+			 * The AE-9 headphones are driven by the ACM/ES9038, not
+			 * by a codec pin; pin 0x11 is the rear line-out.  Keep
+			 * every line-out pin off so the jacks stay muted.
+			 */
+			ca0132_set_out_node_pincfg(codec, spec->out_pins[1], 0, 0);
+		} else {
+			/* enable headphone, either front or rear */
+			if (snd_hda_jack_detect(codec, spec->unsol_tag_front_hp))
+				headphone_nid = spec->out_pins[2];
+			else if (snd_hda_jack_detect(codec, spec->unsol_tag_hp))
+				headphone_nid = spec->out_pins[1];
 
-		ca0132_set_out_node_pincfg(codec, headphone_nid, 1, 1);
+			ca0132_set_out_node_pincfg(codec, headphone_nid, 1, 1);
+		}
 
 		if (outfx_set)
 			err = dspio_set_uint_param(codec, 0x80, 0x04, FLOAT_ONE);
@@ -10263,6 +10277,8 @@ static void ae9_apply_output_path(struct hda_codec *codec)
 	 * (ACM reg2 bit6), so the DAC stays live for the rear jacks. */
 	ae9_dac_write(codec, 0x07, 0x80);		/* ES9038 unmuted */
 	ae9_dac_write(codec, 0x1d, hp ? 0x80 : 0x40);	/* front mute */
+	/* The SABRE9006 drives the rear/center line-outs; mute it for headphones. */
+	ae9_dev49_write(codec, 0x0a, hp ? 0x07 : 0x06);
 	codec_info(codec, "AE-9 output path: %s (ES9038 unmuted, line-out %s)\n",
 		   hp ? "headphone" : "line-out", hp ? "muted" : "unmuted");
 }
@@ -10635,8 +10651,14 @@ static void ae9_dump_work_fn(struct work_struct *work)
  */
 static void ae9_dsp_output_connect(struct hda_codec *codec)
 {
-	dspio_set_uint_param(codec, 0x32, 0x03, 0xc1280000);	/* -10.5 */
-	dspio_set_uint_param(codec, 0x32, 0x04, 0xc1280000);	/* -10.5 */
+	/*
+	 * Windows writes -10.5 dB to req 3/4, which lands on the rear/center
+	 * pair; the front pair (req 2) stays at 0 dB.  That makes the line-out
+	 * jacks 10.5 dB quieter than the front jacks.  Use 0 dB for all three
+	 * so a 5.1 speaker set is balanced; the master volume trims the lot.
+	 */
+	dspio_set_uint_param(codec, 0x32, 0x03, FLOAT_ZERO);
+	dspio_set_uint_param(codec, 0x32, 0x04, FLOAT_ZERO);
 	dspio_set_uint_param(codec, 0x32, 0x02, FLOAT_ZERO);
 }
 
@@ -12272,6 +12294,28 @@ static void ca0132_config(struct hda_codec *codec)
 
 		snd_hda_codec_set_pincfg(codec, spec->unsol_tag_hp,
 					 cfg | (AC_DEFCFG_MISC_NO_PRESENCE << AC_DEFCFG_MISC_SHIFT));
+	}
+
+	/*
+	 * The AE-9 line-out jacks are permanently wired to the card as well.
+	 * Without NO_PRESENCE the desktop's profile set marks the speaker /
+	 * surround routes unavailable (the codec pins have no physical jack
+	 * sense), so the 5.1 profile disappears and WirePlumber falls back to
+	 * stereo or S/PDIF.  Phantom "always plugged" jacks keep every analog
+	 * profile available.
+	 */
+	if (ca0132_quirk(spec) == QUIRK_AE9) {
+		static const hda_nid_t line_pins[] = { 0x0b, 0x0f, 0x10 };
+		unsigned int i;
+
+		for (i = 0; i < ARRAY_SIZE(line_pins); i++) {
+			unsigned int cfg =
+				snd_hda_codec_get_pincfg(codec, line_pins[i]);
+
+			snd_hda_codec_set_pincfg(codec, line_pins[i],
+				cfg | (AC_DEFCFG_MISC_NO_PRESENCE <<
+				       AC_DEFCFG_MISC_SHIFT));
+		}
 	}
 
 	/* Default HP/Speaker auto-detect from headphone pin verb: enable if the
