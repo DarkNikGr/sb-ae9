@@ -31,6 +31,12 @@ MODULE_PARM_DESC(acmset, "ACM set register bits: \"reg,value,mask\" -> F0 03 03 
 static int acmget = -1;
 module_param(acmget, int, 0444);
 MODULE_PARM_DESC(acmget, "ACM read register N: F0 83 01 N F7 -> RX 6, [4]=value");
+static int acmdump;
+module_param(acmdump, int, 0444);
+MODULE_PARM_DESC(acmdump, "1 = read ACM registers 0..31 and print them (use with acm=3)");
+static int acmwatch;
+module_param(acmwatch, int, 0444);
+MODULE_PARM_DESC(acmwatch, "seconds to poll ACM registers 0..7 and log changes (use with acm=3)");
 static char *acmtext;
 module_param(acmtext, charp, 0444);
 MODULE_PARM_DESC(acmtext, "ACM display text (up to 8 chars): F0 11 09 <text> 00 F7");
@@ -221,12 +227,14 @@ static void acm_bringup(void __iomem *b2, int level)
 
 static int __init ae9gpio_init(void)
 {
-	struct pci_dev *pdev = pci_get_domain_bus_and_slot(0, 0x0a, PCI_DEVFN(0, 0));
+	struct pci_dev *pdev = pci_get_device(0x1102, 0x0010, NULL);
 	resource_size_t base, len;
 	void __iomem *b2;
 	unsigned int i;
 
-	if (!pdev) { pr_err("ae9gpio: 0a:00.0 not found\n"); return -ENODEV; }
+	if (!pdev) { pr_err("ae9gpio: 1102:0010 not found\n"); return -ENODEV; }
+	pr_info("ae9gpio: found %s (subsystem %04x:%04x)\n", pci_name(pdev),
+		pdev->subsystem_vendor, pdev->subsystem_device);
 	base = pci_resource_start(pdev, 2); len = pci_resource_len(pdev, 2);
 	pci_dev_put(pdev);
 	if (!base) return -ENODEV;
@@ -277,6 +285,46 @@ static int __init ae9gpio_init(void)
 		n = acm_rx(b2, rx, 6, 300, "getreg");
 		if (n >= 5)
 			pr_info("ae9gpio: ACM reg %d = 0x%02x\n", acmget, rx[4]);
+	}
+	if (acmdump) {
+		u8 cmd[5] = { 0xf0, 0x83, 0x01, 0, 0xf7 };
+		u8 rx[16];
+		int reg, n;
+
+		for (reg = 0; reg < 32; reg++) {
+			cmd[3] = reg;
+			acm_tx(b2, cmd, sizeof(cmd), "dump");
+			n = acm_rx(b2, rx, 6, 300, "dump");
+			if (n >= 5)
+				pr_info("ae9gpio: ACM reg %2d = 0x%02x\n", reg, rx[4]);
+			else
+				pr_info("ae9gpio: ACM reg %2d = (no reply)\n", reg);
+		}
+	}
+	if (acmwatch > 0) {
+		u8 cmd[5] = { 0xf0, 0x83, 0x01, 0, 0xf7 };
+		u8 last[8], rx[16];
+		int reg, n, sec;
+		long long start = ktime_get_seconds();
+
+		memset(last, 0xff, sizeof(last));
+		pr_info("ae9gpio: watching ACM regs 0..7 for %d s\n", acmwatch);
+		for (sec = 0; sec < acmwatch; sec++) {
+			for (reg = 0; reg < 8; reg++) {
+				cmd[3] = reg;
+				acm_tx(b2, cmd, sizeof(cmd), "watch");
+				n = acm_rx(b2, rx, 6, 300, "watch");
+				if (n < 5)
+					continue;
+				if (rx[4] != last[reg]) {
+					pr_info("ae9gpio: watch t=%llds reg %d: %02x -> %02x\n",
+						ktime_get_seconds() - start, reg,
+						last[reg], rx[4]);
+					last[reg] = rx[4];
+				}
+			}
+			msleep(500);
+		}
 	}
 	if (acmtext && *acmtext) {
 		u8 cmd[13] = { 0xf0, 0x11, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0xf7 };
