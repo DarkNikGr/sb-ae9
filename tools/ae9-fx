@@ -200,7 +200,8 @@ INPUT_FORMAT_CONF = "~/.config/wireplumber/wireplumber.conf.d/54-ae9-input-forma
 INPUTS_CONF = "~/.config/pipewire/pipewire.conf.d/20-ae9-inputs.conf"
 # The driver exposes exactly these two; there is no 24-bit ALSA format.
 # 20/24-bit are folded into S32LE with an MSBITS_20/MSBITS_24 subformat.
-FORMATS = [("32-bit (S32LE, incl. 24-bit)", "S32LE"),
+FORMATS = [("Auto (ALSA default)", ""),
+           ("32-bit (S32LE, incl. 24-bit)", "S32LE"),
            ("16-bit (S16LE)", "S16LE")]
 INPUT_FORMATS = [("Auto (ALSA default)", ""),
                  ("32-bit (S32LE, incl. 24-bit)", "S32LE"),
@@ -386,6 +387,12 @@ def saved_format():
 def write_format_conf(fmt):
     """Persist the sample format; the ALSA node picks it up on the next start."""
     path = os.path.expanduser(FORMAT_CONF)
+    if not fmt:
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+        return
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(
@@ -1018,13 +1025,13 @@ class Win(Adw.ApplicationWindow):
         idx = row.get_selected()
         if idx < 0 or idx >= len(FORMATS):
             return
-        fmt = FORMATS[idx][1]
+        label, fmt = FORMATS[idx]
         try:
             write_format_conf(fmt)
         except OSError as exc:
             self.toast(f"format: {exc}")
             return
-        self.toast(f"{fmt} saved — press Restart PipeWire to apply")
+        self.toast(f"{label} saved — press Restart PipeWire to apply")
 
     def do_restart(self):
         if getattr(self, "_restarting", False):
@@ -1279,10 +1286,10 @@ class Win(Adw.ApplicationWindow):
 
             self.apply_layout_lock()
 
-            fmt = saved_format()
+            fmt = saved_format() or ""
             values = [v for _label, v in FORMATS]
-            if fmt in values:
-                self.format_combo.set_selected(values.index(fmt))
+            self.format_combo.set_selected(values.index(fmt)
+                                           if fmt in values else 0)
             self.load_inputs()
             self.refresh_format()
         finally:
