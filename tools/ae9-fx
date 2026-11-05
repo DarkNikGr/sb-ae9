@@ -778,22 +778,12 @@ class Win(Adw.ApplicationWindow):
         self._slot(name)["combo"] = row
         return row
 
-    def add_note(self, group, text, icon="dialog-information-symbolic"):
-        row = Adw.ActionRow(activatable=False)
-        lbl = Gtk.Label(label=text, wrap=True, xalign=0)
-        lbl.add_css_class("dim-label")
-        row.set_child(lbl)
-        row.add_prefix(Gtk.Image.new_from_icon_name(icon))
-        group.add(row)
-        return row
-
-    def add_input_format(self, group, key, what="input"):
+    def add_input_format(self, group, key):
         """Rate and bit-depth rows for one capture input or digital output."""
         _node, max_rate, _where = INPUTS[key]
         rates = [r for r in INPUT_RATE_CHOICES if r <= max_rate]
         rate_row = Adw.ComboRow(
             title="Sample rate",
-            subtitle=f"Saved for this {what}; applies after a PipeWire restart",
             model=Gtk.StringList.new(
                 ["Auto (follow graph)"] + [f"{r} Hz" for r in rates]))
         rate_row.connect("notify::selected", self.on_input_rate, key, rates)
@@ -810,42 +800,16 @@ class Win(Adw.ApplicationWindow):
     # ── pages ─────────────────────────────────────────────────────────────────
 
     def page_level(self, page):
-        g = Adw.PreferencesGroup(
-            title="Volume",
-            description="The ACM knob changes the same setting")
-
+        g = Adw.PreferencesGroup(title="Volume")
         self.add_switch(g, "Master", "Master",
                         "On = sound, off = mute (a short press on the knob)")
-
         self.add_scale(
             g, None, "Master", "Level (0–90)", 0, 90, marks=(65, 72, 90))
-        g.add(Adw.ActionRow(
-            title="90 = 0 dB · 72 ≈ −18 dB · 65 ≈ −25 dB · default 65"))
         page.add(g)
-
-        g2 = Adw.PreferencesGroup(title="Please note")
-        self.add_note(
-            g2,
-            "PipeWire's slider drives the same hardware Master (soft-mixer is "
-            "off), so the desktop slider, the knob and the ACM display all "
-            "show the same level.")
-        self.add_note(
-            g2,
-            "The ae9-defaults service puts Master back to 65 (-25 dB) at every "
-            "login. For another default: systemctl --user edit ae9-defaults → "
-            "Environment=AE9_LEVEL=72")
-        page.add(g2)
 
         g3 = Adw.PreferencesGroup(title="Status")
         self.acm_row = Adw.ActionRow(title="ACM selector", subtitle="—")
         g3.add(self.acm_row)
-        self.add_note(
-            g3,
-            "The selector is internal to the ACM: the driver can only read it. "
-            "AE-9 Output is a real switch: Headphone mutes the rear line-out "
-            "with the ES9038 front mute, Speakers mutes the headphones with "
-            "the ACM amp bit.",
-            "dialog-information-symbolic")
         page.add(g3)
 
     def page_output(self, page):
@@ -853,15 +817,9 @@ class Win(Adw.ApplicationWindow):
         self.add_combo(g, None, "AE-9 Output", "What you hear",
                        "Same as holding the knob for 1.5–3 s")
         self.add_switch(g, "HP/Speaker Auto Detect", "Headphone auto-detect")
-        self.add_note(
-            g,
-            "Auto-detect follows the ACM 3.5 mm jack. The ACM firmware does "
-            "not report the 6.35 mm jack, so switch the output by hand for it.")
         page.add(g)
 
-        g2 = Adw.PreferencesGroup(
-            title="Speakers / surround",
-            description="These affect the line-out path, not the headphones")
+        g2 = Adw.PreferencesGroup(title="Speakers / surround")
         self.add_combo(g2, None, "Surround Channel Config", "Channel layout")
         self.add_switch(g2, "Full-Range Front Speakers", "Full-range front")
         self.add_switch(g2, "Full-Range Rear Speakers", "Full-range rear")
@@ -870,86 +828,26 @@ class Win(Adw.ApplicationWindow):
                        "Crossover (1–100)", 1, 100)
         page.add(g2)
 
-        g3 = Adw.PreferencesGroup(title="Output switching")
-        self.add_note(
-            g3,
-            "Headphone mutes the rear line-out through the ES9038 front mute "
-            "(reg 0x1d); Speakers keeps the line-out live and drops the ACM "
-            "headphone-amp bit. Tested on the Fedora card: each position is "
-            "exclusive. If you still hear both, the driver predates the "
-            "2026-10 output-path fix.",
-            "dialog-information-symbolic")
-        self.add_note(
-            g3,
-            "The ACM's own HP/SP selector is read-only to the driver; the "
-            "driver writes the amp bit and the ES9038 front mute instead.")
-        page.add(g3)
-
-        g4 = Adw.PreferencesGroup(
-            title="S/PDIF output",
-            description="Digital output on the card bracket (device 10); the "
-                        "input switch is on the Input page")
+        g4 = Adw.PreferencesGroup(title="S/PDIF output")
         self.add_switch(g4, "IEC958 Playback Switch", "S/PDIF output",
                         "Send the digital output to the optical port")
-        self.add_input_format(g4, "spdif_out", "output")
-        self.add_note(
-            g4,
-            "Tested with an optical cable from the output back to the input "
-            "at 44.1 / 48 / 88.2 / 96 / 192 kHz. The DSP stays in the path, "
-            "so the loopback is clean but not sample-exact. 176.4 kHz is not "
-            "advertised by the digital converter. For playback pick the "
-            "'Sound Blaster AE-9 Optical S/PDIF' sink; the ACP digital "
-            "profile's sink uses the other PCM and is silent at the optical "
-            "port. The optical link is stereo PCM; 5.1 is available on the "
-            "analog line-out, not over S/PDIF. The rate/format rows above "
-            "belong to this digital PCM only; the analog output keeps its own "
-            "setting below.")
+        self.add_input_format(g4, "spdif_out")
         page.add(g4)
 
-        # The old Format page lives here now: running format, Direct Mode,
-        # sample format, allowed/forced rates and the rate limits.
-        self.page_format(page)
+        self.page_analog_format(page)
 
-    def page_format(self, page):
-        g = Adw.PreferencesGroup(title="Running")
+    def page_analog_format(self, page):
+        g = Adw.PreferencesGroup(title="Analog format")
         self.format_row = Adw.ActionRow(title="Format", subtitle="—")
         self.clock_row = Adw.ActionRow(title="Graph clock", subtitle="—")
         g.add(self.format_row)
         g.add(self.clock_row)
-        page.add(g)
-
-        gd = Adw.PreferencesGroup(
-            title="Direct Mode",
-            description="The DSP/I2S chain follows the stream's native rate "
-                        "instead of staying at 96 kHz. Applies at the next "
-                        "stream start; SBX processing is switched off while "
-                        "it is on.")
-        direct_row = self.add_switch(gd, "AE-9 Direct Mode",
-                                     "AE-9 Direct Mode",
-                                     "44.1 / 48 / 88.2 / 96 / 192 kHz")
-        direct_row.connect("notify::active", self.on_direct_mode)
-        self.hw_rate_row = Adw.ActionRow(title="Hardware rate", subtitle="—")
-        gd.add(self.hw_rate_row)
-        self.add_note(
-            gd,
-            "176.4 kHz is not supported by this path and 384 kHz is not "
-            "implemented. With Direct Mode off the DSP resamples the stream "
-            "to 96 kHz.")
-        page.add(gd)
-
-        gf = Adw.PreferencesGroup(
-            title="Sample format",
-            description="Forced on the ALSA sink at the next WirePlumber start. "
-                        "24-bit has no separate ALSA format: the HDA driver "
-                        "carries it inside S32LE (MSBITS_24), so the 32-bit "
-                        "choice is also the 24-bit path. 16-bit is the only "
-                        "alternative; the graph always processes float32.")
         self.format_combo = Adw.ComboRow(
             title="Bits",
             model=Gtk.StringList.new([label for label, _fmt in FORMATS]))
         self.format_combo.connect("notify::selected", self.on_format)
-        gf.add(self.format_combo)
-        page.add(gf)
+        g.add(self.format_combo)
+        page.add(g)
 
         node = find_sink()
         try:
@@ -959,26 +857,13 @@ class Win(Adw.ApplicationWindow):
         if not rates:
             rates = [44100, 48000, 88200, 96000, 192000]
 
-        g2 = Adw.PreferencesGroup(
-            title="Allowed sample rates",
-            description="Native rates for the card. A change applies at once and "
-                        "is saved for the next PipeWire start; at least one rate "
-                        "must stay on.")
+        g2 = Adw.PreferencesGroup(title="Sample rates")
         self.rate_rows = {}
         for r in rates:
             row = Adw.SwitchRow(title=f"{r} Hz")
             row.connect("notify::active", self.on_rate, r)
             g2.add(row)
             self.rate_rows[r] = row
-        page.add(g2)
-
-        gf = Adw.PreferencesGroup(
-            title="Graph rate",
-            description="Capture sources follow the graph rate unless the "
-                        "Input page sets a fixed rate for that input. Auto "
-                        "follows the playing stream; choose a rate to force it "
-                        "(for example when recording at 96 kHz with nothing "
-                        "playing).")
         self.force_rates = [0, 44100, 48000, 88200, 96000, 192000]
         self.force_combo = Adw.ComboRow(
             title="Force rate",
@@ -986,25 +871,20 @@ class Win(Adw.ApplicationWindow):
                 ["Auto (follow streams)"] +
                 [f"{r} Hz" for r in self.force_rates[1:]]))
         self.force_combo.connect("notify::selected", self.on_force_rate)
-        gf.add(self.force_combo)
-        page.add(gf)
+        g2.add(self.force_combo)
+        page.add(g2)
 
-        g3 = Adw.PreferencesGroup(title="Limits")
-        self.add_note(
-            g3,
-            "The analog PCM exposes 44.1-192 kHz. 176.4 kHz is not supported "
-            "and 384 kHz is not implemented yet; the card's S/PDIF output also "
-            "reaches 192 kHz.", "dialog-warning-symbolic")
-        self.add_note(
-            g3,
-            "Allowed rates are a PipeWire graph setting: they apply to every "
-            "output, not only to the AE-9.")
-        page.add(g3)
+        gd = Adw.PreferencesGroup(title="Direct Mode")
+        direct_row = self.add_switch(gd, "AE-9 Direct Mode",
+                                     "AE-9 Direct Mode",
+                                     "44.1 / 48 / 88.2 / 96 / 192 kHz")
+        direct_row.connect("notify::active", self.on_direct_mode)
+        self.hw_rate_row = Adw.ActionRow(title="Hardware rate", subtitle="—")
+        gd.add(self.hw_rate_row)
+        page.add(gd)
 
     def page_fx(self, page):
-        g = Adw.PreferencesGroup(
-            title="SBX",
-            description="The ACM's SBX button — same as Enable OutFX")
+        g = Adw.PreferencesGroup(title="SBX")
         self.add_switch(g, "Enable OutFX", "Effects",
                         "While this is off the driver keeps every processor "
                         "off in the DSP; the switches below only remember what "
@@ -1035,11 +915,6 @@ class Win(Adw.ApplicationWindow):
         for i in range(10):
             self.add_scale(None, eq, f"EQ Band{i}", f"Band {i + 1}", 0, 48)
         g3.add(eq)
-        self.add_note(
-            g3,
-            "If a change does not seem to take, pause playback for a few "
-            "seconds and resume: some DSP settings are picked up at stream "
-            "start.")
         page.add(g3)
 
     def page_dac(self, page):
@@ -1050,26 +925,8 @@ class Win(Adw.ApplicationWindow):
                            "DAC master trim (AE-5/AE-7 only)")
         page.add(g)
 
-        g2 = Adw.PreferencesGroup(title="Headphone gain")
-        self.add_note(
-            g2,
-            "On the AE-9 the IEM / N / HIGH gain is the 3-position switch on "
-            "the ACM. It is an analog stage and the driver cannot change it. "
-            "The ES9038Q2M trims stay at 0 dB, so leave the switch at the "
-            "position that matches your headphones and use Master for level.",
-            "audio-headphones-symbolic")
-        self.add_note(
-            g2,
-            "Capture is on its own page now: the ACM microphone (device 0) and "
-            "the rear line-in (device 4) work.",
-            "dialog-information-symbolic")
-        page.add(g2)
-
     def page_capture(self, page):
-        gmic = Adw.PreferencesGroup(
-            title="Microphone",
-            description="ACM microphone on capture device 0 (main codec). "
-                        "Capture amp in 1 dB steps: 90 = 0 dB, 99 = +9 dB")
+        gmic = Adw.PreferencesGroup(title="Microphone")
         self.add_combo(gmic, None, "Input Source", "Hardware input",
                        "Main codec ADC: Microphone / Line In")
         self.add_switch(gmic, "Capture", "Capture",
@@ -1079,26 +936,13 @@ class Win(Adw.ApplicationWindow):
         self.add_combo(gmic, None, "Mic Boost", "Mic boost",
                        "Analogue preamp for the ACM microphone")
         self.add_input_format(gmic, "mic")
-        self.add_note(
-            gmic,
-            "Input Source only switches the main codec's ADC. The rear "
-            "line-in is a separate PCM (device 4) and does not follow it.")
         page.add(gmic)
 
-        gline = Adw.PreferencesGroup(
-            title="Line In",
-            description="Rear line-in on capture device 4 (secondary codec)")
+        gline = Adw.PreferencesGroup(title="Line In")
         self.add_input_format(gline, "linein")
-        self.add_note(
-            gline,
-            "Separate device from the microphone: pick 'Sound Blaster AE-9 "
-            "Line In' in the recording application. Its level is the source "
-            "volume in the desktop, not the microphone capture amp.")
         page.add(gline)
 
-        gwu = Adw.PreferencesGroup(
-            title="What U Hear",
-            description="The DSP output, recorded as a capture source")
+        gwu = Adw.PreferencesGroup(title="What U Hear")
         self.add_switch(gwu, "What U Hear", "What U Hear",
                         "Record what the card is playing")
         self.add_scale(gwu, None, "What U Hear", "Loopback level (0–99)",
@@ -1106,21 +950,13 @@ class Win(Adw.ApplicationWindow):
         self.add_input_format(gwu, "wuh")
         page.add(gwu)
 
-        gspdif = Adw.PreferencesGroup(
-            title="S/PDIF input",
-            description="Optical input on capture device 10 (digital)")
+        gspdif = Adw.PreferencesGroup(title="S/PDIF input")
         self.add_switch(gspdif, "IEC958 Capture Switch", "S/PDIF input",
                         "Receive the optical input as capture device 10")
         self.add_input_format(gspdif, "spdif")
-        self.add_note(
-            gspdif,
-            "The matching S/PDIF output switch is on the Output page. In "
-            "PipeWire this source is 'Sound Blaster AE-9 S/PDIF'.")
         page.add(gspdif)
 
-        gfx = Adw.PreferencesGroup(
-            title="CrystalVoice / input effects",
-            description="Run in the DSP while a capture stream is active")
+        gfx = Adw.PreferencesGroup(title="CrystalVoice / input effects")
         self.infx_master = self.add_switch(
             gfx, "Enable InFX Capture Switch", "Enable InFX",
             "Master switch for the input processors")
@@ -1137,40 +973,7 @@ class Win(Adw.ApplicationWindow):
         self.infx_rows.append(self.add_combo(
             gfx, None, "VoiceFX Capture Switch", "VoiceFX preset",
             "Needs Enable InFX; e.g. Male2Female, Female2Male, Robot"))
-        self.add_note(
-            gfx,
-            "VoiceFX is the voice-morph processor (Male2Female, Female2Male, "
-            "ScrappyKid, Elderly, Orc, Elf, Dwarf, AlienBrute, Robot, Marine, "
-            "Emo, DeepVoice, Munchkin, Neutral). It runs only while Enable "
-            "InFX is on.")
         page.add(gfx)
-
-        g2 = Adw.PreferencesGroup(title="Desktop")
-        self.add_note(
-            g2,
-            "The ACM microphone is the default PipeWire source. The install "
-            "also exposes the rear line-in ('Sound Blaster AE-9 Line In') and "
-            "the DSP loopback ('Sound Blaster AE-9 What U Hear') as separate "
-            "sources for Audacity/OBS. What U Hear records what the card is "
-            "playing.")
-        self.add_note(
-            g2,
-            "In Audacity pick the AE-9 source (not the generic 'default' "
-            "device, which can show a bogus 128-channel max) and set 1 or 2 "
-            "recording channels.")
-        self.add_note(
-            g2,
-            "The Levels above are the card's hardware capture amp. PipeWire "
-            "and GNOME put their own software source volume on top; the "
-            "hardware level is the one that changes the analogue gain, and "
-            "Mic boost adds 10, 20 or 30 dB ahead of it.")
-        self.add_note(
-            g2,
-            "The rate and format rows are per input. They are saved in the "
-            "PipeWire/WirePlumber configuration and take effect after a "
-            "restart; the microphone can do up to 96 kHz, the line-in and "
-            "S/PDIF up to 192 kHz.")
-        page.add(g2)
 
     # ── handlers ──────────────────────────────────────────────────────────────
 
