@@ -2,7 +2,7 @@
 
 The split upstream series for the current **sound.git `for-next`** branch
 (Linux v7.2 plus the later ca0132 changes, including the AE-5 LED strip
-work): 22 patches plus a cover letter.  Every patch passes
+work): 24 patches plus a cover letter.  Every patch passes
 `scripts/checkpatch.pl --no-tree` with **0 errors and 0 warnings**.
 
 Apply on top of a clean `sound` `for-next` checkout:

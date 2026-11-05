@@ -1,0 +1,90 @@
+From c65afcc2ac91420c186b9803b5c2a8ac3b7f35cc Mon Sep 17 00:00:00 2001
+From: DarkNikGr <mitakidisnikos@gmail.com>
+Date: Thu, 5 Nov 2026 02:59:57 +0200
+Subject: [PATCH 23/24] ALSA: hda/ca0132: leave the AE-9 headphone gain to the
+ ACM
+
+The AE-9 selects its IEM/Normal/High headphone gain with the 3-position
+switch on the Audio Control Module.  That stage is analog: polling ACM
+registers 0..31 while switching showed no gain state, and Windows only
+ever writes 0 dB to the ES9038 front-channel trims.
+
+The AE-9 inherited the AE-5 'Headphone Gain' enum through the shared
+quirk table, so it exposed an 'AE-5: ...' control that digitally
+attenuated the DAC on top of the hardware switch, and it defaulted to
+the -8 dB preset until ALSA state restore ran.
+
+Keep the 0 dB trims on every output change, do not create the software
+control for the AE-9, and document the hardware switch.  AE-5/AE-7 keep
+their existing control.
+
+Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
+---
+ sound/hda/codecs/ca0132.c | 32 +++++++++++++++++++++++---------
+ 1 file changed, 23 insertions(+), 9 deletions(-)
+
+diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
+index 870954f..43ab98f 100644
+--- a/sound/hda/codecs/ca0132.c
++++ b/sound/hda/codecs/ca0132.c
+@@ -5052,18 +5052,26 @@ static int ca0132_alt_select_out_quirk_set(struct hda_codec *codec)
+ 	}
+ 
+ 	if (quirk_data->has_headphone_gain) {
+-		if (spec->cur_out_type != HEADPHONE_OUT) {
+-			if (quirk_data->is_ae_series)
++		if (quirk_data->is_ae_series) {
++			/*
++			 * The AE-9 selects its headphone gain with the
++			 * 3-position IEM/Normal/High switch on the ACM; the
++			 * host side has no control over that stage.  Windows
++			 * keeps the ES9038 front-channel trims at 0 dB on
++			 * this card, so do the same and never attenuate the
++			 * DAC on top of the hardware switch.
++			 */
++			if (ca0132_quirk(spec) == QUIRK_AE9)
++				ae5_headphone_gain_set(codec, 2);
++			else if (spec->cur_out_type != HEADPHONE_OUT)
+ 				ae5_headphone_gain_set(codec, 2);
+ 			else
+-				zxr_headphone_gain_set(codec, 0);
+-		} else {
+-			if (quirk_data->is_ae_series)
+ 				ae5_headphone_gain_set(codec,
+ 						spec->ae5_headphone_gain_val);
+-			else
+-				zxr_headphone_gain_set(codec,
+-						spec->zxr_gain_set);
++		} else {
++			zxr_headphone_gain_set(codec,
++					spec->cur_out_type == HEADPHONE_OUT ?
++					spec->zxr_gain_set : 0);
+ 		}
+ 	}
+ 
+@@ -7790,11 +7798,12 @@ static int ca0132_build_controls(struct hda_codec *codec)
+ 		if (err < 0)
+ 			return err;
+ 		fallthrough;
+-	case QUIRK_AE9:
+ 	case QUIRK_AE7:
+ 		err = ae5_add_headphone_gain_enum(codec);
+ 		if (err < 0)
+ 			return err;
++		fallthrough;
++	case QUIRK_AE9:
+ 		err = ae5_add_sound_filter_enum(codec);
+ 		if (err < 0)
+ 			return err;
+@@ -12250,6 +12259,11 @@ static void ca0132_alt_init(struct hda_codec *codec)
+ 		 */
+ 		chipio_read(codec, 0x18b030, &tmp);
+ 		chipio_write(codec, 0x18b030, 0x00000027);
++		/*
++		 * The ACM's IEM/Normal/High switch owns the gain; keep the
++		 * ES9038 trims at 0 dB like Windows does.
++		 */
++		spec->ae5_headphone_gain_val = 2;
+ 		break;
+ 	case QUIRK_AE7:
+ 		ca0132_gpio_init(codec);

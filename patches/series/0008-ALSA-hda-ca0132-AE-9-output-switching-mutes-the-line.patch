@@ -4,7 +4,7 @@ In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
 References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
-Subject: [PATCH 08/22] ALSA: hda/ca0132: AE-9 output switching mutes the
+Subject: [PATCH 08/24] ALSA: hda/ca0132: AE-9 output switching mutes the
  line-out buffer
 
 The ACM amp bit (reg2 bit6) only enables the headphone amplifier. On the

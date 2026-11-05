@@ -4,7 +4,7 @@ In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
 References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:16:44 +0200
-Subject: [PATCH 01/22] ALSA: hda/ca0132: add Sound Blaster AE-9 support
+Subject: [PATCH 01/24] ALSA: hda/ca0132: add Sound Blaster AE-9 support
 
 Add support for the Creative Sound Blaster AE-9 (PCI 1102:0010,
 subsystem 1102:0071).  The card has two CA0132 codecs on one PCI

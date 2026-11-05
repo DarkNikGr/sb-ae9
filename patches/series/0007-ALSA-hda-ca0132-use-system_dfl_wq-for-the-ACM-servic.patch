@@ -4,7 +4,7 @@ In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
 References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
-Subject: [PATCH 07/22] ALSA: hda/ca0132: use system_dfl_wq for the ACM service
+Subject: [PATCH 07/24] ALSA: hda/ca0132: use system_dfl_wq for the ACM service
 
 Use system_dfl_wq, the new name of the unbound system workqueue
 since 6.18, and drop the duplicate SABRE unmute from the ACM

@@ -4,7 +4,7 @@ In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
 References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
-Subject: [PATCH 12/22] ALSA: hda/ca0132: AE-9: hide the unwired Front
+Subject: [PATCH 12/24] ALSA: hda/ca0132: AE-9: hide the unwired Front
  Microphone input
 
 The generic CA0132 Input Source selector exposes Microphone, Line In and

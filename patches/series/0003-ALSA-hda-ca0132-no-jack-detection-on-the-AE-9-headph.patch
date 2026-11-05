@@ -4,7 +4,7 @@ In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
 References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
-Subject: [PATCH 03/22] ALSA: hda/ca0132: no jack detection on the AE-9
+Subject: [PATCH 03/24] ALSA: hda/ca0132: no jack detection on the AE-9
  headphone pin
 
 The AE-9's headphone output is the ACM, permanently attached. With presence

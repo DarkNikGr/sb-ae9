@@ -4,7 +4,7 @@ In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
 References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:29 +0200
-Subject: [PATCH 18/22] ALSA: hda/ca0132: AE-9: auto-switch output on ACM
+Subject: [PATCH 18/24] ALSA: hda/ca0132: AE-9: auto-switch output on ACM
  headphone jack
 
 Sample ACM register 2 bit 5 (active low) every 10th ACM tick and select

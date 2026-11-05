@@ -14,7 +14,7 @@ ca0132 changes, including the AE-5 LED strip work).  Apply them in order:
 Both pass `scripts/checkpatch.pl --no-tree` (0 errors, 0 warnings) and the
 resulting sources build against the 7.2.14 kernel headers.
 
-The split submission series is in `series/`: 22 patches plus a cover
+The split submission series is in `series/`: 24 patches plus a cover
 letter, all checkpatch-clean and based on the current `for-next`.  It
 follows the feature order below.  `0002` above is the same code squashed
 into one patch for a quick read.
@@ -25,7 +25,10 @@ into one patch for a quick read.
 - ACM UART service, SBX light, knob, display and buttons;
 - shared Headphone+LO volume and the AE-9 mixer controls;
 - capture (main and secondary codec);
-- Direct Mode and rate handling.
+- Direct Mode and rate handling;
+- the AE-9 headphone gain is left to the ACM's 3-position switch,
+  with the ES9038 trims kept at 0 dB (and a label fix for the
+  existing AE-5 control).
 
 The **out-of-tree tree** in `driver/` is based on v7.0 and intentionally
 keeps the scoped `hdac_bus_needs_posted_flush()` helper: the DKMS package

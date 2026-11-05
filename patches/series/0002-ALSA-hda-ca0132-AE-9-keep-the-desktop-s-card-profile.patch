@@ -4,7 +4,7 @@ In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
 References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
-Subject: [PATCH 02/22] ALSA: hda/ca0132: AE-9: keep the desktop's card
+Subject: [PATCH 02/24] ALSA: hda/ca0132: AE-9: keep the desktop's card
  profiles off the AE-9 routing
 
 - ca0132: name the AE-9's output selector 'AE-9 Output'. The ALSA card

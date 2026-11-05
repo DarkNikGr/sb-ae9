@@ -4,7 +4,7 @@ In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
 References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
-Subject: [PATCH 09/22] ALSA: hda/ca0132: AE-9 ACM: keep the knob/display path
+Subject: [PATCH 09/24] ALSA: hda/ca0132: AE-9 ACM: keep the knob/display path
  fast
 
 The 50 ms turbo tick still ran the keepalive, both button probes and the

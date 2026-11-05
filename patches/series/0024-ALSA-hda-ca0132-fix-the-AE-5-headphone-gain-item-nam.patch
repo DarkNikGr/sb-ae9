@@ -1,0 +1,28 @@
+From b14d7d7146a22d4d5b205506ceb2ea54ff90f650 Mon Sep 17 00:00:00 2001
+From: DarkNikGr <mitakidisnikos@gmail.com>
+Date: Thu, 5 Nov 2026 03:00:07 +0200
+Subject: [PATCH 24/24] ALSA: hda/ca0132: fix the AE-5 headphone gain item names
+
+The preset names already carry the opening parenthesis and range, and
+the suffix is appended with an extra space, so the control showed
+'Low (16-31  Ohms)' without the closing parenthesis.  Add the missing
+')' and drop the doubled space.
+
+Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
+---
+ sound/hda/codecs/ca0132.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
+index 43ab98f..f101740 100644
+--- a/sound/hda/codecs/ca0132.c
++++ b/sound/hda/codecs/ca0132.c
+@@ -6243,7 +6243,7 @@ static int ca0132_alt_mic_boost_put(struct snd_kcontrol *kcontrol,
+ static int ae5_headphone_gain_info(struct snd_kcontrol *kcontrol,
+ 				 struct snd_ctl_elem_info *uinfo)
+ {
+-	const char *sfx = " Ohms)";
++	const char *sfx = "Ohms)";
+ 	char namestr[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+ 
+ 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;

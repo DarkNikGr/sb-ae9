@@ -4,7 +4,7 @@ In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
 References: <cover.1793838735.git.mitakidisnikos@gmail.com>
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
-Subject: [PATCH 06/22] ALSA: hda/ca0132: keep AE-9 capture opt-in
+Subject: [PATCH 06/24] ALSA: hda/ca0132: keep AE-9 capture opt-in
 
 The AE-9 bring-up only covers the playback path.  Opening a
 capture stream on the main codec hard-locked the machine (an
