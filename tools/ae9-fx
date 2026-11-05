@@ -666,7 +666,7 @@ class Win(Adw.ApplicationWindow):
         sidebar_toolbar.add_bottom_bar(sidebar_bottom)
 
         # Content header: page title plus the two global actions.
-        self.content_title = Adw.WindowTitle(title="Volume",
+        self.content_title = Adw.WindowTitle(title="Output",
                                              subtitle="Sound Blaster AE-9")
         content_header = Adw.HeaderBar()
         content_header.set_title_widget(self.content_title)
@@ -686,7 +686,7 @@ class Win(Adw.ApplicationWindow):
         content_toolbar.set_content(self.stack)
 
         self.content_page = Adw.NavigationPage(child=content_toolbar,
-                                               title="Volume")
+                                               title="Output")
         sidebar_page = Adw.NavigationPage(child=sidebar_toolbar,
                                           title="Sections")
         split = Adw.NavigationSplitView()
@@ -698,7 +698,6 @@ class Win(Adw.ApplicationWindow):
 
         self.page_rows = []
         for title, icon, build in (
-            ("Volume", "audio-volume-high-symbolic", self.page_level),
             ("Output", "audio-speakers-symbolic", self.page_output),
             ("Input", "audio-input-microphone-symbolic", self.page_capture),
             ("SBX", "applications-multimedia-symbolic", self.page_fx),
@@ -810,12 +809,9 @@ class Win(Adw.ApplicationWindow):
             g, None, "Master", "Level (0–90)", 0, 90, marks=(65, 72, 90))
         page.add(g)
 
-        g3 = Adw.PreferencesGroup(title="Status")
-        self.acm_row = Adw.ActionRow(title="ACM selector", subtitle="—")
-        g3.add(self.acm_row)
-        page.add(g3)
-
     def page_output(self, page):
+        self.page_level(page)
+
         g = Adw.PreferencesGroup(title="Output")
         self.add_combo(g, None, "AE-9 Output", "What you hear",
                        "Same as holding the knob for 1.5–3 s")
@@ -1272,9 +1268,6 @@ class Win(Adw.ApplicationWindow):
             if infx is not None:
                 for row in getattr(self, "infx_rows", []):
                     row.set_sensitive(infx.get_active())
-
-            sel = acm_selector()
-            self.acm_row.set_subtitle(sel or "unknown (not found in the log)")
 
             allowed = set(allowed_rates())
             for r, row in self.rate_rows.items():

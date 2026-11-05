@@ -471,8 +471,7 @@ No root needed.
 
 | Page | What it controls |
 |---|---|
-| **Volume** | Master, mute, ACM selector status |
-| **Output** | `AE-9 Output`, auto-detect, surround, S/PDIF output switch and rate/bits, DAC oversampling filter, running format, graph clock, allowed/forced rates, Direct Mode, analog sample bits |
+| **Output** | Master volume/mute, `AE-9 Output`, auto-detect, surround, S/PDIF output switch and rate/bits, DAC oversampling filter, running format, graph clock, allowed/forced rates, Direct Mode, analog sample bits |
 | **Input** | Separate microphone, line-in, What U Hear and S/PDIF groups, per-input rate/bits, S/PDIF input switch, capture level/switch, mic boost, CrystalVoice and VoiceFX |
 | **SBX** | Effects master, each processor and level, 10-band EQ |
 
