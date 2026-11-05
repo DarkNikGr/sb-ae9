@@ -331,6 +331,12 @@ a separate rate and bit-depth setting for each input:
 | What U Hear (device 2) | `alsa_input.ae9_wuh` | 44.1–96 kHz | `20-ae9-inputs.conf` |
 | S/PDIF in (device 10) | `alsa_input.ae9_spdif` | 44.1–192 kHz | `20-ae9-inputs.conf` |
 
+The optical output is a separate PCM as well, with its own rate and bit-depth rows on
+the **Output** page (under *S/PDIF (optical)*). The analog format from the Format page
+does not apply to it; this setting is stored for `alsa_output.ae9_spdif` in
+`20-ae9-inputs.conf`. **Auto** follows the graph rate, a fixed value opens that PCM at
+the selected rate and the graph resamples into it.
+
 Choose **Auto** to leave the ALSA default (`S32LE`, graph rate). A forced rate is that
 input's own rate, but PipeWire still has one graph clock: while playing, the output and
 the capture input may be resampled to the graph rate. If you need a capture-only session
@@ -461,7 +467,7 @@ No root needed.
 | Page | What it controls |
 |---|---|
 | **Volume** | Master, mute, ACM selector status |
-| **Output** | `AE-9 Output`, auto-detect, surround, S/PDIF out/in switches |
+| **Output** | `AE-9 Output`, auto-detect, surround, S/PDIF out/in switches, separate S/PDIF rate/bits |
 | **Format** | Running format, graph clock, allowed and forced rates, Direct Mode, sample bits, PipeWire restart |
 | **SBX** | Effects master, each processor and level, 10-band EQ |
 | **DAC** | Oversampling filter (headphone gain is the ACM switch) |

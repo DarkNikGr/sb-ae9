@@ -211,6 +211,9 @@ INPUTS = {
     "linein": ("alsa_input.ae9_linein", 192000, "adapter"),
     "wuh": ("alsa_input.ae9_wuh", 96000, "adapter"),
     "spdif": ("alsa_input.ae9_spdif", 192000, "adapter"),
+    # This one is an output, but it lives in the same adapter file and uses
+    # the same rate/format rows.
+    "spdif_out": ("alsa_output.ae9_spdif", 192000, "adapter"),
 }
 
 
@@ -766,13 +769,13 @@ class Win(Adw.ApplicationWindow):
         group.add(row)
         return row
 
-    def add_input_format(self, group, key):
-        """Rate and bit-depth rows for one capture input."""
+    def add_input_format(self, group, key, what="input"):
+        """Rate and bit-depth rows for one capture input or digital output."""
         _node, max_rate, _where = INPUTS[key]
         rates = [r for r in INPUT_RATE_CHOICES if r <= max_rate]
         rate_row = Adw.ComboRow(
             title="Sample rate",
-            subtitle="Saved for this input; applies after a PipeWire restart",
+            subtitle=f"Saved for this {what}; applies after a PipeWire restart",
             model=Gtk.StringList.new(
                 ["Auto (follow graph)"] + [f"{r} Hz" for r in rates]))
         rate_row.connect("notify::selected", self.on_input_rate, key, rates)
@@ -881,6 +884,7 @@ class Win(Adw.ApplicationWindow):
                         "Send the digital output to the optical port")
         self.add_switch(g4, "IEC958 Capture Switch", "S/PDIF input",
                         "Receive the optical input as capture device 10")
+        self.add_input_format(g4, "spdif_out", "output")
         self.add_note(
             g4,
             "Tested with an optical cable from the output back to the input "
@@ -891,7 +895,9 @@ class Win(Adw.ApplicationWindow):
             "profile's sink uses the other PCM and is silent at the optical "
             "port. The input is the 'Sound Blaster AE-9 S/PDIF' PipeWire "
             "source. The optical link is stereo PCM; 5.1 is available on the "
-            "analog line-out, not over S/PDIF.")
+            "analog line-out, not over S/PDIF. The rate/format rows above "
+            "belong to this digital PCM only; the analog output keeps its own "
+            "Format-page setting.")
         page.add(g4)
 
     def page_format(self, page):
@@ -1266,7 +1272,7 @@ class Win(Adw.ApplicationWindow):
         except OSError as exc:
             self.toast(f"input format: {exc}")
             return
-        self.toast("Input format saved — press Restart PipeWire")
+        self.toast("Format saved — press Restart PipeWire")
 
     def load_inputs(self):
         for key in INPUTS:
