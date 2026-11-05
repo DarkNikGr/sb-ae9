@@ -158,6 +158,24 @@ address it by id.
 The user service `ae9-defaults` selects the ACM headphones, sets a safe Master level
 and makes the AE-9 analog sink PipeWire's default.
 
+### One-command health check
+
+`tools/ae9-selftest.sh` runs the whole matrix and prints one summary: module,
+bring-up log, mixer controls, PipeWire nodes and defaults, capture/playback at
+44.1/96/192 kHz, and the optical S/PDIF loopback.
+
+```sh
+tools/ae9-selftest.sh                 # full run (plays a short 1 kHz tone)
+tools/ae9-selftest.sh --quick         # 48 kHz only
+tools/ae9-selftest.sh --no-playback --no-loopback
+tools/ae9-selftest.sh --json ae9.json --report ae9.log
+```
+
+It temporarily sets the PipeWire graph rate for each step and restores the previous
+`clock.force-rate` on exit, including on Ctrl-C. Exit status is `0` when every check
+passed; warnings (for example the card is not the default sink) and skips do not fail
+the run. Attach the JSON file to a bug report.
+
 ---
 
 ## Using the card
@@ -527,10 +545,11 @@ and read Hazard 5.
 driver/ca0132/      codec driver (kernel ca0132.c + AE-9 support)
 driver/hda-core/    kernel HDA core + the posted-write fix, built as an override
 patches/            upstream series against sound.git for-next (see patches/README.md)
-tools/              ae9-fx GUI, firmware extractor, report collector,
+tools/              ae9-fx GUI, selftest, firmware extractor, report collector,
                     S/PDIF loopback test, acm-tool
 install/            modprobe options, PipeWire sources, WirePlumber names,
                     udev name rule, session defaults, unmute/resume hooks
+.github/            CI: checkpatch, patch application, lint and module builds
 docs/               investigation log, protocol notes, register captures
 ```
 

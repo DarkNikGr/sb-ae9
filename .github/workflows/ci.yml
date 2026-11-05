@@ -1,0 +1,134 @@
+name: ci
+
+on:
+  push:
+    branches: [main, 'work/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The submission series must stay checkpatch-clean.
+  checkpatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch checkpatch
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/checkpatch.pl" \
+            "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/scripts/checkpatch.pl?h=v7.2"
+          chmod +x "$RUNNER_TEMP/checkpatch.pl"
+      - name: Check the series
+        run: |
+          set -e
+          for p in patches/series/[0-9][0-9][0-9][0-9]-*.patch; do
+            case "$p" in
+              */0000-cover-letter.patch) continue ;;
+            esac
+            "$RUNNER_TEMP/checkpatch.pl" --no-tree --terse "$p"
+          done
+
+  # Both patch sets must still apply to the current upstream trees.
+  series:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply the codec series to sound for-next
+        run: |
+          set -e
+          mkdir -p "$RUNNER_TEMP/tree/sound/hda/codecs"
+          curl -fsSL -o "$RUNNER_TEMP/tree/sound/hda/codecs/ca0132.c" \
+            "https://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git/plain/sound/hda/codecs/ca0132.c?h=for-next"
+          cd "$RUNNER_TEMP/tree"
+          git init -q
+          git config user.name "AE-9 CI"
+          git config user.email "ci@example.invalid"
+          git add .
+          git commit -qm "sound for-next base"
+          git am "$GITHUB_WORKSPACE"/patches/series/0001-*.patch \
+                 "$GITHUB_WORKSPACE"/patches/series/000[2-9]-*.patch \
+                 "$GITHUB_WORKSPACE"/patches/series/001*.patch \
+                 "$GITHUB_WORKSPACE"/patches/series/002*.patch
+      - name: Apply the HDA-core flush patch to sound for-next
+        run: |
+          set -e
+          mkdir -p "$RUNNER_TEMP/core/sound/hda/core"
+          for f in controller.c stream.c; do
+            curl -fsSL -o "$RUNNER_TEMP/core/sound/hda/core/$f" \
+              "https://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git/plain/sound/hda/core/$f?h=for-next"
+          done
+          cd "$RUNNER_TEMP/core"
+          git init -q
+          git config user.name "AE-9 CI"
+          git config user.email "ci@example.invalid"
+          git add .
+          git commit -qm "sound for-next core"
+          git apply --check "$GITHUB_WORKSPACE"/patches/0001-*.patch
+
+  # Scripts and the GUI must at least parse.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+      - name: Shell syntax
+        run: |
+          bash -n install.sh uninstall.sh install/*.sh \
+            install/ae9-resume-sleep tools/*.sh
+      - name: ShellCheck
+        run: |
+          shellcheck -S error install.sh uninstall.sh install/*.sh \
+            install/ae9-resume-sleep tools/*.sh
+      - name: Python syntax
+        run: python3 -m py_compile tools/ae9-fx
+
+  # Build the out-of-tree modules and the upstream series result against the
+  # latest Fedora kernel headers.
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container: fedora:latest
+    steps:
+      - name: Install git
+        run: dnf -y install git
+      - uses: actions/checkout@v4
+      - name: Install the toolchain
+        run: dnf -y install gcc make kernel-devel curl
+      - name: Build the out-of-tree modules
+        run: |
+          set -e
+          KDIR=$(ls -d /usr/src/kernels/* | head -1)
+          test -n "$KDIR"
+          echo "KDIR=$KDIR"
+          make -C driver/ca0132 KDIR="$KDIR" -j"$(nproc)"
+          make -C driver/hda-core KDIR="$KDIR" -j"$(nproc)"
+      - name: Build the upstream series result
+        run: |
+          set -e
+          KDIR=$(ls -d /usr/src/kernels/* | head -1)
+          mkdir -p "$RUNNER_TEMP/tree/sound/hda/codecs"
+          curl -fsSL -o "$RUNNER_TEMP/tree/sound/hda/codecs/ca0132.c" \
+            "https://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git/plain/sound/hda/codecs/ca0132.c?h=for-next"
+          cd "$RUNNER_TEMP/tree"
+          git init -q
+          git config user.name "AE-9 CI"
+          git config user.email "ci@example.invalid"
+          git add .
+          git commit -qm "sound for-next base"
+          git am "$GITHUB_WORKSPACE"/patches/series/0001-*.patch \
+                 "$GITHUB_WORKSPACE"/patches/series/000[2-9]-*.patch \
+                 "$GITHUB_WORKSPACE"/patches/series/001*.patch \
+                 "$GITHUB_WORKSPACE"/patches/series/002*.patch
+          cd "$GITHUB_WORKSPACE/driver/ca0132"
+          make clean KDIR="$KDIR"
+          cp "$RUNNER_TEMP/tree/sound/hda/codecs/ca0132.c" ca0132.c
+          make KDIR="$KDIR" -j"$(nproc)"
