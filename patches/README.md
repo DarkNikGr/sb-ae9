@@ -13,14 +13,16 @@ These patches are the upstream-shaped version of the AE-9 work, based on
 Both pass `scripts/checkpatch.pl --no-tree` (0 errors, 0 warnings) and the
 resulting sources build against the 7.2.14 kernel headers.
 
-`0002` is still one large patch.  Before submission it should be split by
-feature so the review is tractable, roughly:
+The split submission series is in `series/`: 22 patches plus a cover
+letter, all checkpatch-clean and based on v7.2.  It follows the feature
+order below.  `0002` above is the same code squashed into one patch for a
+quick read.
 
-- quirk ID, PCI table, pin configuration and the basic bring-up;
+- base quirk, PCI table, pin configuration and the Windows-style bring-up;
 - DSP loader, ASI/PLL, the output-connect overlay and the 8051 hooks;
-- ACM UART service, knob, display, buttons and SBX light;
+- output routing, jack detection and auto-detect;
+- ACM UART service, SBX light, knob, display and buttons;
 - shared Headphone+LO volume and the AE-9 mixer controls;
-- output routing / auto-detect;
 - capture (main and secondary codec);
 - Direct Mode and rate handling.
 

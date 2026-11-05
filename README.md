@@ -534,12 +534,12 @@ docs/               investigation log, protocol notes, register captures
 
 ## Upstream status
 
-`patches/` is the upstream-shaped series against Linux v7.2.  Both patches pass
-`checkpatch.pl` and build against the 7.2 headers.  The HDA-core fix is generic;
-the codec support is still one large patch and needs splitting by feature before
-submission.  The out-of-tree tree keeps a scoped version of the core readback
-because its DKMS module replaces `snd-hda-core` for every controller.  See
-`patches/README.md`.
+`patches/` is the upstream-shaped series against Linux v7.2.  The HDA-core
+fix is generic; the codec support is split into 22 feature patches in
+`patches/series/` (plus a cover letter).  All patches pass `checkpatch.pl`
+and the series builds against the 7.2 headers.  The out-of-tree tree keeps
+a scoped version of the core readback because its DKMS module replaces
+`snd-hda-core` for every controller.  See `patches/README.md`.
 
 ---
 

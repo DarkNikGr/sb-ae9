@@ -1,0 +1,119 @@
+From a7f0e113b865b6a4f48aec0b669cc72d1e8ebb66 Mon Sep 17 00:00:00 2001
+Message-ID: <a7f0e113b865b6a4f48aec0b669cc72d1e8ebb66.1793838246.git.mitakidisnikos@gmail.com>
+In-Reply-To: <cover.1793838246.git.mitakidisnikos@gmail.com>
+References: <cover.1793838246.git.mitakidisnikos@gmail.com>
+From: DarkNikGr <mitakidisnikos@gmail.com>
+Date: Thu, 5 Nov 2026 02:17:07 +0200
+Subject: [PATCH 09/22] ALSA: hda/ca0132: AE-9 ACM: keep the knob/display path
+ fast
+
+The 50 ms turbo tick still ran the keepalive, both button probes and the
+register check, whose UART waits made one tick take most of a second; the
+knob appeared to move in ~1 s steps. While turbo is active, service only
+the knob and the display, send the volume display without waiting for its
+ack, and keep the keepalive on every 10th tick. Button probes and register
+checks resume when the knob stops.
+
+Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
+---
+ sound/hda/codecs/ca0132.c | 48 +++++++++++++++++++++++++++------------
+ 1 file changed, 34 insertions(+), 14 deletions(-)
+
+diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
+index 464da83..89656c0 100644
+--- a/sound/hda/codecs/ca0132.c
++++ b/sound/hda/codecs/ca0132.c
+@@ -9383,14 +9383,22 @@ static bool ae9_acm_keepalive(struct ca0132_spec *spec)
+ }
+ 
+ /* F0 11 09 <8 ASCII, NUL padded> 00 F7 : display text */
+-static void ae9_acm_display(struct ca0132_spec *spec, const char *txt)
++static void ae9_acm_display_frame(struct ca0132_spec *spec, const char *txt, bool wait)
+ {
+ 	u8 f[13] = { 0xf0, 0x11, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xf7 };
+ 	int i;
+ 
+ 	for (i = 0; i < 8 && txt[i]; i++)
+ 		f[3 + i] = txt[i];
+-	ae9_acm_cmd(spec, f, sizeof(f));
++	if (wait)
++		ae9_acm_cmd(spec, f, sizeof(f));
++	else
++		ae9_acm_tx(spec, f, sizeof(f));	/* fire and forget: volume display */
++}
++
++static void ae9_acm_display(struct ca0132_spec *spec, const char *txt)
++{
++	ae9_acm_display_frame(spec, txt, true);
+ }
+ 
+ /* 'Master Playback Volume' on the AE-9 is a virtual master whose slave is
+@@ -9450,7 +9458,7 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
+ 		snprintf(txt, sizeof(txt), "%s%d.%d",
+ 			 db100 ? "-" : "", db100 / 100,
+ 			 (db100 % 100) / 10);
+-	ae9_acm_display(spec, txt);
++	ae9_acm_display_frame(spec, txt, false);
+ }
+ 
+ /* Push the current Output Select to the ACM's analog mux (§10.6: reg2 bit2 =
+@@ -9793,6 +9801,7 @@ static void ae9_acm_work_fn(struct work_struct *work)
+ 	struct ca0132_spec *spec = container_of(to_delayed_work(work),
+ 						struct ca0132_spec, ae9_acm_work);
+ 	struct hda_codec *codec = spec->codec;
++	bool turbo = spec->ae9_acm_turbo > 0;
+ 
+ 	ae9_gpio_cmd(spec, 0x0105);
+ 	if (!spec->ae9_acm_present) {
+@@ -9809,26 +9818,37 @@ static void ae9_acm_work_fn(struct work_struct *work)
+ 	if (!ae9_acm_poll)
+ 		return;			/* parked at runtime via /sys/module/.../parameters */
+ 	spec->ae9_acm_tick++;
+-	if (!ae9_acm_keepalive(spec)) {
+-		if (++spec->ae9_acm_dead_ticks >= 6) {
+-			codec_info(codec, "AE-9 ACM: no keepalive reply for %d ticks, re-initialising\n",
+-				   spec->ae9_acm_dead_ticks);
++	/*
++	 * While the knob is moving only the knob and the display are serviced.
++	 * The keepalive is still sent every 10th tick (500 ms) so the ACM does
++	 * not consider the host gone; the button probes and register checks are
++	 * deferred, because their UART waits were what made a 50 ms turbo tick
++	 * take almost a second.
++	 */
++	if (!turbo || (spec->ae9_acm_tick % 10) == 0) {
++		if (!ae9_acm_keepalive(spec)) {
++			if (++spec->ae9_acm_dead_ticks >= 6) {
++				codec_info(codec, "AE-9 ACM: no keepalive reply for %d ticks, re-initialising\n",
++					   spec->ae9_acm_dead_ticks);
++				spec->ae9_acm_dead_ticks = 0;
++				spec->ae9_acm_present = false;
++				goto out;
++			}
++		} else {
+ 			spec->ae9_acm_dead_ticks = 0;
+-			spec->ae9_acm_present = false;
+-			goto out;
+ 		}
+-	} else {
+-		spec->ae9_acm_dead_ticks = 0;
+ 	}
+ 	if (spec->ae9_acm_pending_mode) {
+ 		spec->ae9_acm_pending_mode = false;
+ 		ae9_acm_apply_mode(codec);
+-	} else if ((spec->ae9_acm_tick % 10) == 0) {
++	} else if (!turbo && (spec->ae9_acm_tick % 10) == 0) {
+ 		ae9_acm_check_regs(codec);
+ 	}
+ 	ae9_acm_knob(codec);
+-	ae9_acm_service_buttons(codec);
+-	ae9_acm_service_knob_press(codec);
++	if (!turbo) {
++		ae9_acm_service_buttons(codec);
++		ae9_acm_service_knob_press(codec);
++	}
+ 	if (spec->ae9_acm_pending_fx) {
+ 		spec->ae9_acm_pending_fx = false;
+ 		ae9_acm_set_fx_light(spec, ae9_fx_enabled(spec));
+-- 
+2.56.0
+

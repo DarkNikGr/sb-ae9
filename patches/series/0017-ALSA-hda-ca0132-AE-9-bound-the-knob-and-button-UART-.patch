@@ -1,0 +1,147 @@
+From 19fa210d5b254b22bbcb3d0cd8577d967c6d9551 Mon Sep 17 00:00:00 2001
+Message-ID: <19fa210d5b254b22bbcb3d0cd8577d967c6d9551.1793838246.git.mitakidisnikos@gmail.com>
+In-Reply-To: <cover.1793838246.git.mitakidisnikos@gmail.com>
+References: <cover.1793838246.git.mitakidisnikos@gmail.com>
+From: DarkNikGr <mitakidisnikos@gmail.com>
+Date: Thu, 5 Nov 2026 02:17:07 +0200
+Subject: [PATCH 17/22] ALSA: hda/ca0132: AE-9: bound the knob and button UART
+ queries
+
+The generic ae9_acm_tx() waits on the 16550 LSR THRE bit and writes even
+if the wait expires; the knob and button queries are polled every 500 ms
+and a slow/partial frame can pile up on the shared BAR2 UART.
+
+Use Creative's DWORD status bit 1 (TX ready, the bit Windows polls) for
+the C2 knob and B1 button queries, with a bounded wait. On timeout or a
+0xffffffff status, mark that query as failed and stop it until the module
+is reloaded instead of resending a partial sysex frame. Maintenance and
+display frames keep the existing path.
+
+Based on s3boun3t/ae9_build commits fb4a88a0 (knobtx1) and ebf33df0
+(buttontx1).
+
+Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
+---
+ sound/hda/codecs/ca0132.c | 85 ++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 83 insertions(+), 2 deletions(-)
+
+diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
+index a7ed681..20160bf 100644
+--- a/sound/hda/codecs/ca0132.c
++++ b/sound/hda/codecs/ca0132.c
+@@ -1214,6 +1214,8 @@ struct ca0132_spec {
+ 	int ae9_knob_dir;		/* last encoder direction seen (Windows: board+0x288) */
+ 	bool ae9_dsp_vol_zeroed;	/* DSP output volume parked at 0 dB */
+ 	bool ae9_acm_regs_logged;	/* first periodic ACM register check logged */
++	bool ae9_acm_knob_tx_failed;	/* knob query TX broke: stop until reload */
++	bool ae9_acm_button_tx_failed;	/* button query TX broke: stop until reload */
+ 	int ae9_acm_dead_ticks;		/* consecutive keepalive probes unanswered */
+ 	int ae9_acm_sel;		/* module output selector bits (items 5/6) */
+ 
+@@ -9547,6 +9549,83 @@ static void ae9_acm_tx(struct ca0132_spec *spec, const u8 *p, int n)
+ 	}
+ }
+ 
++/*
++ * Bounded TX for the periodic knob/button queries.  The generic ae9_acm_tx()
++ * keeps the maintenance/display frames on the slow LSR path; the knob and
++ * button queries use Creative's DWORD status bit 1 (TX ready), which is what
++ * Windows polls.  A broken TX must never resend a partial sysex frame, so the
++ * query is stopped until the module is reloaded.
++ *
++ * Based on s3boun3t/ae9_build (knobtx1/buttontx1).
++ */
++static bool ae9_acm_knob_tx(struct ca0132_spec *spec, const u8 *p, int n)
++{
++	void __iomem *b2 = spec->mem_base;
++	u32 status = 0;
++	int i, w;
++
++	if (ca0132_quirk(spec) != QUIRK_AE9 || spec->ae9_acm_knob_tx_failed)
++		return false;
++	for (i = 0; i < 64 && (readb(b2 + AE9_U_LSR) & 0x01); i++)
++		(void)readb(b2 + AE9_U_RBR);
++	for (i = 0; i < n; i++) {
++		for (w = 0; w < 100; w++) {
++			status = readl(b2 + AE9_U_STS);
++			if (status == ~0U)
++				goto failed;
++			if (status & 0x02)
++				break;
++			usleep_range(50, 100);
++		}
++		if (w == 100)
++			goto failed;
++		writeb(p[i], b2 + AE9_U_THR);
++		readb(b2 + AE9_U_LCR);
++	}
++	return true;
++
++failed:
++	spec->ae9_acm_knob_tx_failed = true;
++	codec_warn(spec->codec,
++		   "AE-9 ACM knob TX: FAILED sent=%d/%d status=%08x; knob polling stopped until reload\n",
++		   i, n, status);
++	return false;
++}
++
++static bool ae9_acm_button_tx(struct ca0132_spec *spec, const u8 *p, int n)
++{
++	void __iomem *b2 = spec->mem_base;
++	u32 status = 0;
++	int i, w;
++
++	if (ca0132_quirk(spec) != QUIRK_AE9 || spec->ae9_acm_button_tx_failed)
++		return false;
++	for (i = 0; i < 64 && (readb(b2 + AE9_U_LSR) & 0x01); i++)
++		(void)readb(b2 + AE9_U_RBR);
++	for (i = 0; i < n; i++) {
++		for (w = 0; w < 100; w++) {
++			status = readl(b2 + AE9_U_STS);
++			if (status == ~0U)
++				goto failed;
++			if (status & 0x02)
++				break;
++			usleep_range(50, 100);
++		}
++		if (w == 100)
++			goto failed;
++		writeb(p[i], b2 + AE9_U_THR);
++		readb(b2 + AE9_U_LCR);
++	}
++	return true;
++
++failed:
++	spec->ae9_acm_button_tx_failed = true;
++	codec_warn(spec->codec,
++		   "AE-9 ACM button TX: FAILED sent=%d/%d status=%08x; button polling stopped until reload\n",
++		   i, n, status);
++	return false;
++}
++
+ static int ae9_acm_rx(struct ca0132_spec *spec, u8 *buf, int max, int first_wait_ms)
+ {
+ 	void __iomem *b2 = spec->mem_base;
+@@ -9734,7 +9813,8 @@ static int ae9_acm_button(struct ca0132_spec *spec, int n)
+ 	u8 rx[8];
+ 	int got;
+ 
+-	ae9_acm_tx(spec, q, sizeof(q));
++	if (!ae9_acm_button_tx(spec, q, sizeof(q)))
++		return 0;
+ 	got = ae9_acm_rx(spec, rx, sizeof(rx), 30);
+ 	if (got < 5 || rx[0] != 0xf0 || rx[3] != n || rx[4] != 1)
+ 		return 0;
+@@ -10000,7 +10080,8 @@ static void ae9_acm_knob(struct hda_codec *codec)
+ 	int n, dir, steps, delta;
+ 	long v;
+ 
+-	ae9_acm_tx(spec, q, sizeof(q));
++	if (!ae9_acm_knob_tx(spec, q, sizeof(q)))
++		return;
+ 	n = ae9_acm_rx(spec, rx, 8, 30);
+ 	if (n < 5 || rx[0] != 0xf0)
+ 		return;
+-- 
+2.56.0
+

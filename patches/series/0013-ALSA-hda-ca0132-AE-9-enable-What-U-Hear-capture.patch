@@ -1,0 +1,37 @@
+From 132b42e8fb774803fe9191eee31ca59bdc336453 Mon Sep 17 00:00:00 2001
+Message-ID: <132b42e8fb774803fe9191eee31ca59bdc336453.1793838246.git.mitakidisnikos@gmail.com>
+In-Reply-To: <cover.1793838246.git.mitakidisnikos@gmail.com>
+References: <cover.1793838246.git.mitakidisnikos@gmail.com>
+From: DarkNikGr <mitakidisnikos@gmail.com>
+Date: Thu, 5 Nov 2026 02:17:07 +0200
+Subject: [PATCH 13/22] ALSA: hda/ca0132: AE-9: enable What U Hear capture
+
+Set the WUH connection point to 48 kHz in ae9_dsp_defaults; without it the
+What U Hear capture device (2) stayed silent. Tested: a 440 Hz playback is
+captured at -26 dBFS.
+
+install/20-ae9-inputs.conf exposes the rear line-in (hw:Creative,4) and
+What U Hear (hw:Creative,2) as separate PipeWire sources so Audacity/OBS
+can select them; install.sh/uninstall.sh manage the file. README documents
+the three capture paths and the Audacity 128-channel default-device quirk.
+
+Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
+---
+ sound/hda/codecs/ca0132.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
+index bff5296..ddfa8fa 100644
+--- a/sound/hda/codecs/ca0132.c
++++ b/sound/hda/codecs/ca0132.c
+@@ -9168,6 +9168,7 @@ static void ae9_dsp_defaults(struct hda_codec *codec)
+ 	dspio_set_uint_param(codec, 0x96, 0x3c, FLOAT_ZERO);
+ 	dspio_set_uint_param(codec, 0x31, 0x00, FLOAT_TWO);
+ 	dspio_set_uint_param(codec, 0x32, 0x00, FLOAT_TWO);
++	chipio_set_conn_rate(codec, MEM_CONNID_WUH, SR_48_000);
+ }
+ 
+ /*
+-- 
+2.56.0
+
