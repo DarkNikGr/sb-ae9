@@ -184,7 +184,8 @@ On AMD systems with the IOMMU enabled, add `iommu=pt` before rebooting.
   already in place);
 - installs `/etc/modprobe.d/sb-ae9.conf`;
 - installs PipeWire source/name rules, the WirePlumber name rule and the udev card
-  name rule;
+  name rule; an existing `20-ae9-inputs.conf` is kept, because it also carries the
+  per-input format choices from the GUI (use `AE9_RESET_CONFIGS=1` to replace it);
 - installs the session-defaults user service, the post-PipeWire unmute unit and the
   post-resume system-sleep hook;
 - warns about Secure Boot and a missing `iommu=pt`.
@@ -320,13 +321,32 @@ also exposes:
 - **“Sound Blaster AE-9 S/PDIF”** — `hw:Creative,10`;
 - **“Sound Blaster AE-9 Optical S/PDIF”** — playback sink on `hw:Creative,10`.
 
-The extra sources have no fixed rate: they follow the PipeWire graph. If you need a
-capture-only session at another rate (for example 96 kHz with nothing playing), use the
-GUI's **Force rate** on the Format page.
+By default the extra sources follow the PipeWire graph. The GUI's **Capture** page has
+a separate rate and bit-depth setting for each input:
+
+| Input | Node | Rates | Storage |
+|---|---|---|---|
+| Microphone (device 0) | `alsa_input.pci-0000_29_00.0.analog-stereo` | 44.1–96 kHz | `54-ae9-input-format.conf` |
+| Line In (device 4) | `alsa_input.ae9_linein` | 44.1–192 kHz | `20-ae9-inputs.conf` |
+| What U Hear (device 2) | `alsa_input.ae9_wuh` | 44.1–96 kHz | `20-ae9-inputs.conf` |
+| S/PDIF in (device 10) | `alsa_input.ae9_spdif` | 44.1–192 kHz | `20-ae9-inputs.conf` |
+
+Choose **Auto** to leave the ALSA default (`S32LE`, graph rate). A forced rate is that
+input's own rate, but PipeWire still has one graph clock: while playing, the output and
+the capture input may be resampled to the graph rate. If you need a capture-only session
+at another rate (for example 96 kHz with nothing playing), use the GUI's **Force rate**
+on the Format page.
+
+The microphone and the rear line-in are separate PCM devices. The **Input Source**
+control only switches the main codec's ADC (Microphone / Line In); it does not change the
+rear line-in, which is the secondary codec's own capture device and is selected as
+**Sound Blaster AE-9 Line In** in the recording application.
 
 Capture level and mic boost are the card's hardware amp (1 dB steps, 90 = 0 dB): use
 `Capture` in `amixer` or the **Capture** page of the GUI, plus `Mic Boost`
-(0/10/20/30 dB). PipeWire/GNOME add their own software source volume on top.
+(0/10/20/30 dB). PipeWire/GNOME add their own software source volume on top. The rear
+line-in has no hardware amp of its own, so its level is the source volume in the
+desktop.
 
 > In Audacity/OBS prefer the explicit AE-9 source over the generic `default` entry,
 > which can advertise a bogus 128-channel maximum. Set 1 or 2 recording channels.
@@ -445,7 +465,7 @@ No root needed.
 | **Format** | Running format, graph clock, allowed and forced rates, Direct Mode, sample bits, PipeWire restart |
 | **SBX** | Effects master, each processor and level, 10-band EQ |
 | **DAC** | Oversampling filter (headphone gain is the ACM switch) |
-| **Capture** | Input source, capture level/switch, mic boost, What U Hear, CrystalVoice and VoiceFX |
+| **Capture** | Separate microphone, line-in, What U Hear and S/PDIF groups, per-input rate/bits, capture level/switch, mic boost, CrystalVoice and VoiceFX |
 
 The header has **reload** (re-read the card) and **reset** (manufacturer defaults:
 Master 65, Headphone output, effects off). The Format page, `AE-9 Output` and

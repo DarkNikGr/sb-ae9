@@ -192,10 +192,26 @@ def acm_selector():
 RATE_CONF = "~/.config/pipewire/pipewire.conf.d/10-ae9-rates.conf"
 # Where the sample format is forced; applies on the next WirePlumber start.
 FORMAT_CONF = "~/.config/wireplumber/wireplumber.conf.d/53-ae9-format.conf"
+# Per-input rate/format.  The main-codec microphone is an ACP node, so a
+# WirePlumber rule can shape it; the extra sources are adapter objects in
+# 20-ae9-inputs.conf and must be edited there.
+INPUT_FORMAT_CONF = "~/.config/wireplumber/wireplumber.conf.d/54-ae9-input-format.conf"
+INPUTS_CONF = "~/.config/pipewire/pipewire.conf.d/20-ae9-inputs.conf"
 # The driver exposes exactly these two; there is no 24-bit ALSA format.
 # 20/24-bit are folded into S32LE with an MSBITS_20/MSBITS_24 subformat.
 FORMATS = [("32-bit (S32LE, incl. 24-bit)", "S32LE"),
            ("16-bit (S16LE)", "S16LE")]
+INPUT_FORMATS = [("Auto (ALSA default)", ""),
+                 ("32-bit (S32LE, incl. 24-bit)", "S32LE"),
+                 ("16-bit (S16LE)", "S16LE")]
+INPUT_RATE_CHOICES = [44100, 48000, 88200, 96000, 192000]
+# key: (PipeWire node name, maximum rate, where the value is stored)
+INPUTS = {
+    "mic": ("alsa_input.pci-0000_29_00.0.analog-stereo", 96000, "rule"),
+    "linein": ("alsa_input.ae9_linein", 192000, "adapter"),
+    "wuh": ("alsa_input.ae9_wuh", 96000, "adapter"),
+    "spdif": ("alsa_input.ae9_spdif", 192000, "adapter"),
+}
 
 
 def _pw(*args):
@@ -388,6 +404,114 @@ def write_format_conf(fmt):
             "]\n")
 
 
+def _read_text(path):
+    try:
+        with open(os.path.expanduser(path), encoding="utf-8") as fh:
+            return fh.read()
+    except OSError:
+        return ""
+
+
+def _write_text(path, text):
+    path = os.path.expanduser(path)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    os.replace(tmp, path)
+
+
+def _parse_rate_fmt(block):
+    rate = re.search(r"audio\.rate\s*=\s*(\d+)", block)
+    fmt = re.search(r'audio\.format\s*=\s*"(\w+)"', block)
+    return (int(rate.group(1)) if rate else 0,
+            fmt.group(1) if fmt else "")
+
+
+def input_rule_state(node):
+    """Rate/format saved for an ACP input in 54-ae9-input-format.conf."""
+    for block in _read_text(INPUT_FORMAT_CONF).split("\n  {"):
+        if f'"{node}"' in block:
+            return _parse_rate_fmt(block)
+    return 0, ""
+
+
+def write_input_rule(node, rate, fmt):
+    """Persist the ACP microphone format; applies at the next WirePlumber start."""
+    path = os.path.expanduser(INPUT_FORMAT_CONF)
+    if not rate and not fmt:
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+        return
+    props = []
+    if fmt:
+        props.append(f'audio.format = "{fmt}"')
+    if rate:
+        props.append(f"audio.rate = {rate}")
+    _write_text(INPUT_FORMAT_CONF,
+                "# Sound Blaster AE-9: sample rate/format for the analog input.\n"
+                "# Written by ae9-fx - takes effect after a WirePlumber restart.\n"
+                "monitor.alsa.rules = [\n"
+                "  {\n"
+                "    matches = [\n"
+                f'      {{ node.name = "{node}" }}\n'
+                "    ]\n"
+                "    actions = {\n"
+                "      update-props = {\n"
+                f"        {', '.join(props)}\n"
+                "      }\n"
+                "    }\n"
+                "  }\n"
+                "]\n")
+
+
+def adapter_input_state(node):
+    """Rate/format saved for an extra source in 20-ae9-inputs.conf."""
+    text = _read_text(INPUTS_CONF)
+    m = re.search(r'node\.name\s*=\s*"' + re.escape(node) +
+                  r'"(.*?)(\n\s*\})', text, re.S)
+    return _parse_rate_fmt(m.group(1)) if m else (0, "")
+
+
+def write_adapter_input(node, rate, fmt):
+    """Persist one of the extra sources' rate/format in 20-ae9-inputs.conf."""
+    text = _read_text(INPUTS_CONF)
+    if not text:
+        raise OSError("20-ae9-inputs.conf not found (run install.sh)")
+    m = re.search(r'(node\.name\s*=\s*"' + re.escape(node) +
+                  r'"[^\n]*\n)(.*?)(\n\s*\})', text, re.S)
+    if not m:
+        raise OSError(f"{node} not found in 20-ae9-inputs.conf")
+    body = re.sub(r'(?m)^\s*audio\.(format|rate)\s*=.*\n', "", m.group(2))
+    insert = []
+    if fmt:
+        insert.append(f'        audio.format     = "{fmt}"')
+    if rate:
+        insert.append(f'        audio.rate       = {rate}')
+    lines = body.splitlines(True)
+    out = []
+    done = False
+    for line in lines:
+        if not done and insert and re.match(r"\s*audio\.position", line):
+            out.extend(l + "\n" if not l.endswith("\n") else l for l in insert)
+            done = True
+        out.append(line)
+    if not done:
+        if insert and out and not out[-1].endswith("\n"):
+            out[-1] += "\n"
+        out.extend(l + "\n" if not l.endswith("\n") else l for l in insert)
+    _write_text(INPUTS_CONF, text[:m.start(2)] + "".join(out) + text[m.end(2):])
+
+
+def saved_input_state(key):
+    node, _max_rate, where = INPUTS[key]
+    if where == "rule":
+        return input_rule_state(node)
+    return adapter_input_state(node)
+
+
 def mixer_state():
     """Route/level/effects as they are now, so a restart can put them back."""
     try:
@@ -491,6 +615,9 @@ class Win(Adw.ApplicationWindow):
         self.loading = False
         self.widgets = {}        # alsa name -> {"switch"|"scale"|"combo": widget}
         self.pending = {}        # alsa name -> GLib source id (debounce)
+        self.input_rows = {}     # input key -> rate/format combo widgets
+        self.input_state = {}    # input key -> {"rate": int, "fmt": str}
+        self.restart_buttons = []
 
         self.stack = Adw.ViewStack()
 
@@ -638,6 +765,35 @@ class Win(Adw.ApplicationWindow):
         row.add_prefix(Gtk.Image.new_from_icon_name(icon))
         group.add(row)
         return row
+
+    def add_input_format(self, group, key):
+        """Rate and bit-depth rows for one capture input."""
+        _node, max_rate, _where = INPUTS[key]
+        rates = [r for r in INPUT_RATE_CHOICES if r <= max_rate]
+        rate_row = Adw.ComboRow(
+            title="Sample rate",
+            subtitle="Saved for this input; applies after a PipeWire restart",
+            model=Gtk.StringList.new(
+                ["Auto (follow graph)"] + [f"{r} Hz" for r in rates]))
+        rate_row.connect("notify::selected", self.on_input_rate, key, rates)
+        group.add(rate_row)
+
+        fmt_row = Adw.ComboRow(
+            title="Sample format",
+            model=Gtk.StringList.new([label for label, _v in INPUT_FORMATS]))
+        fmt_row.connect("notify::selected", self.on_input_fmt, key)
+        group.add(fmt_row)
+
+        self.input_rows[key] = {"rate": rate_row, "rates": rates, "fmt": fmt_row}
+
+    def add_restart_row(self, group, subtitle):
+        row = Adw.ActionRow(title="Restart PipeWire", subtitle=subtitle)
+        btn = Gtk.Button(label="Restart")
+        btn.set_valign(Gtk.Align.CENTER)
+        btn.connect("clicked", lambda _b: self.do_restart())
+        row.add_suffix(btn)
+        group.add(row)
+        self.restart_buttons.append(btn)
 
     # ── pages ─────────────────────────────────────────────────────────────────
 
@@ -802,9 +958,11 @@ class Win(Adw.ApplicationWindow):
 
         gf = Adw.PreferencesGroup(
             title="Graph rate",
-            description="Capture sources follow the graph rate. Auto follows "
-                        "the playing stream; choose a rate to force it (for "
-                        "example when recording at 96 kHz with nothing playing).")
+            description="Capture sources follow the graph rate unless the "
+                        "Capture page sets a fixed rate for that input. Auto "
+                        "follows the playing stream; choose a rate to force it "
+                        "(for example when recording at 96 kHz with nothing "
+                        "playing).")
         self.force_rates = [0, 44100, 48000, 88200, 96000, 192000]
         self.force_combo = Adw.ComboRow(
             title="Force rate",
@@ -828,13 +986,7 @@ class Win(Adw.ApplicationWindow):
         page.add(g3)
 
         gr = Adw.PreferencesGroup(title="PipeWire")
-        row = Adw.ActionRow(title="Restart PipeWire",
-                            subtitle="Applies the saved rates and format")
-        self.restart_btn = Gtk.Button(label="Restart")
-        self.restart_btn.set_valign(Gtk.Align.CENTER)
-        self.restart_btn.connect("clicked", lambda _b: self.do_restart())
-        row.add_suffix(self.restart_btn)
-        gr.add(row)
+        self.add_restart_row(gr, "Applies the saved rates and format")
         self.add_note(
             gr,
             "Audio stops for a few seconds. The AE-9 routing and level are "
@@ -907,33 +1059,54 @@ class Win(Adw.ApplicationWindow):
         page.add(g2)
 
     def page_capture(self, page):
-        g = Adw.PreferencesGroup(
-            title="Input",
-            description="ACM microphone on capture device 0; rear line-in on "
-                        "device 4")
-        self.add_combo(g, None, "Input Source", "ACM input",
-                       "Microphone / Line In")
-        page.add(g)
-
-        glevel = Adw.PreferencesGroup(
-            title="Levels",
-            description="Capture amp in 1 dB steps: 90 = 0 dB, 99 = +9 dB")
-        self.add_switch(glevel, "Capture", "Capture",
-                        "Input capture switch for the selected source")
-        self.add_scale(glevel, None, "Capture", "Capture level (0–99)",
+        gmic = Adw.PreferencesGroup(
+            title="Microphone",
+            description="ACM microphone on capture device 0 (main codec). "
+                        "Capture amp in 1 dB steps: 90 = 0 dB, 99 = +9 dB")
+        self.add_combo(gmic, None, "Input Source", "Hardware input",
+                       "Main codec ADC: Microphone / Line In")
+        self.add_switch(gmic, "Capture", "Capture",
+                        "Input capture switch for the main codec")
+        self.add_scale(gmic, None, "Capture", "Capture level (0–99)",
                        0, 99, marks=(90,))
-        self.add_combo(glevel, None, "Mic Boost", "Mic boost",
+        self.add_combo(gmic, None, "Mic Boost", "Mic boost",
                        "Analogue preamp for the ACM microphone")
-        page.add(glevel)
+        self.add_input_format(gmic, "mic")
+        self.add_note(
+            gmic,
+            "Input Source only switches the main codec's ADC. The rear "
+            "line-in is a separate PCM (device 4) and does not follow it.")
+        page.add(gmic)
+
+        gline = Adw.PreferencesGroup(
+            title="Line In",
+            description="Rear line-in on capture device 4 (secondary codec)")
+        self.add_input_format(gline, "linein")
+        self.add_note(
+            gline,
+            "Separate device from the microphone: pick 'Sound Blaster AE-9 "
+            "Line In' in the recording application. Its level is the source "
+            "volume in the desktop, not the microphone capture amp.")
+        page.add(gline)
 
         gwu = Adw.PreferencesGroup(
-            title="Loopback",
+            title="What U Hear",
             description="The DSP output, recorded as a capture source")
         self.add_switch(gwu, "What U Hear", "What U Hear",
                         "Record what the card is playing")
         self.add_scale(gwu, None, "What U Hear", "Loopback level (0–99)",
                        0, 99, marks=(90,))
+        self.add_input_format(gwu, "wuh")
         page.add(gwu)
+
+        gspdif = Adw.PreferencesGroup(
+            title="S/PDIF input",
+            description="Optical input on capture device 10 (digital)")
+        self.add_input_format(gspdif, "spdif")
+        self.add_note(
+            gspdif,
+            "The S/PDIF capture switch is on the Output page.")
+        page.add(gspdif)
 
         gfx = Adw.PreferencesGroup(
             title="CrystalVoice / input effects",
@@ -981,7 +1154,21 @@ class Win(Adw.ApplicationWindow):
             "and GNOME put their own software source volume on top; the "
             "hardware level is the one that changes the analogue gain, and "
             "Mic boost adds 10, 20 or 30 dB ahead of it.")
+        self.add_note(
+            g2,
+            "The rate and format rows are per input. They are saved in the "
+            "PipeWire/WirePlumber configuration and take effect after a "
+            "restart; the microphone can do up to 96 kHz, the line-in and "
+            "S/PDIF up to 192 kHz.")
         page.add(g2)
+
+        gp = Adw.PreferencesGroup(title="PipeWire")
+        self.add_restart_row(gp, "Applies the saved input rates and formats")
+        self.add_note(
+            gp,
+            "Audio stops for a few seconds. The AE-9 routing and level are "
+            "restored afterwards.")
+        page.add(gp)
 
     # ── handlers ──────────────────────────────────────────────────────────────
 
@@ -1036,17 +1223,66 @@ class Win(Adw.ApplicationWindow):
         if getattr(self, "_restarting", False):
             return
         self._restarting = True
-        self.restart_btn.set_sensitive(False)
+        for btn in self.restart_buttons:
+            btn.set_sensitive(False)
         threading.Thread(target=_restart_worker,
                          args=(mixer_state(), self._restart_done),
                          daemon=True).start()
 
     def _restart_done(self, msg):
         self._restarting = False
-        self.restart_btn.set_sensitive(True)
+        for btn in self.restart_buttons:
+            btn.set_sensitive(True)
         self.toast(msg)
         self.reload()
         return False
+
+    def on_input_rate(self, row, _param, key, rates):
+        if self.loading:
+            return
+        idx = row.get_selected()
+        st = self.input_state.setdefault(key, {"rate": 0, "fmt": ""})
+        st["rate"] = rates[idx - 1] if 0 < idx <= len(rates) else 0
+        self.save_input(key)
+
+    def on_input_fmt(self, row, _param, key):
+        if self.loading:
+            return
+        idx = row.get_selected()
+        if idx < 0 or idx >= len(INPUT_FORMATS):
+            return
+        st = self.input_state.setdefault(key, {"rate": 0, "fmt": ""})
+        st["fmt"] = INPUT_FORMATS[idx][1]
+        self.save_input(key)
+
+    def save_input(self, key):
+        st = self.input_state.get(key, {"rate": 0, "fmt": ""})
+        node, _max_rate, where = INPUTS[key]
+        try:
+            if where == "rule":
+                write_input_rule(node, st["rate"], st["fmt"])
+            else:
+                write_adapter_input(node, st["rate"], st["fmt"])
+        except OSError as exc:
+            self.toast(f"input format: {exc}")
+            return
+        self.toast("Input format saved — press Restart PipeWire")
+
+    def load_inputs(self):
+        for key in INPUTS:
+            try:
+                rate, fmt = saved_input_state(key)
+            except OSError:
+                rate, fmt = 0, ""
+            self.input_state[key] = {"rate": rate, "fmt": fmt}
+            info = self.input_rows.get(key)
+            if info is None:
+                continue
+            rates = info["rates"]
+            idx = rates.index(rate) + 1 if rate in rates else 0
+            info["rate"].set_selected(idx)
+            values = [v for _label, v in INPUT_FORMATS]
+            info["fmt"].set_selected(values.index(fmt) if fmt in values else 0)
 
     def on_force_rate(self, row, _param):
         if self.loading:
@@ -1205,6 +1441,7 @@ class Win(Adw.ApplicationWindow):
             values = [v for _label, v in FORMATS]
             if fmt in values:
                 self.format_combo.set_selected(values.index(fmt))
+            self.load_inputs()
             self.refresh_format()
         finally:
             self.loading = False
