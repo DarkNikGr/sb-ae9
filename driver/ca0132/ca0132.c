@@ -41,18 +41,6 @@ static bool ae9_out_mute = true;
 module_param(ae9_out_mute, bool, 0644);
 MODULE_PARM_DESC(ae9_out_mute, "AE-9: mute the unselected output when switching headphone/line-out (default 1)");
 
-/* Windows rewrites the ES9038 output-routing ("THD") table on every output
- * change (docs/reverse-engineering/ctxhda-acm-analysis.md section 10.4):
- * DAC mode 3 (headphone) = 0x0d 0, 0x16..0x18 0, 0x19 1;
- * DAC mode 4 (line-out)  = 0x0d 0x40, 0x16..0x18 0, 0x19 0.
- * ae9_post_dsp_finish() programs that table once at bring-up only, so a later
- * output switch leaves the DAC on its start-up routing; on 1102:0071 cards
- * that means the ACM headphones stay silent even with the amp bit set and the
- * DAC unmuted. Set to 0 to restore the old behaviour. */
-static bool ae9_out_thd = true;
-module_param(ae9_out_thd, bool, 0644);
-MODULE_PARM_DESC(ae9_out_thd, "AE-9: program the ES9038 output-routing (THD) table when switching headphone/line-out (default 1)");
-
 /* The AE-9 main codec's capture path runs through the DSP and is not brought
  * up; starting a capture stream there hard-locks the machine (2026-09-09: an
  * application fell back to the card's analog capture when a USB microphone
@@ -9264,6 +9252,29 @@ static void ae9_post_dsp_dac_init(struct hda_codec *codec)
 		ae9_dev49_write(codec, d49_reg[i], d49_val[i]);
 }
 
+/*
+ * ES9038 output-routing ("THD") table, written exactly as Windows does on
+ * every output change (docs/reverse-engineering/ctxhda-acm-analysis.md
+ * section 10.4):
+ *   DAC mode 3 (headphone) = 0x0d 0, 0x16..0x18 0, 0x19 1;
+ *   DAC mode 4 (line-out)  = 0x0d 0x40, 0x16..0x18 0, 0x19 0.
+ * Called at bring-up and on every output switch, so the DAC never keeps the
+ * routing of a previous mode.  Note that this table does not mute the
+ * unselected output on this board: ae9_out_mute still has to do that.
+ *
+ * Keep it that way: on 2026-11-05 the tone was still audible from the
+ * line-out with ae9_out_mute=0 and 0x19=1, so the routing alone is not an
+ * output switch.
+ */
+static void ae9_dac_set_thd(struct hda_codec *codec, bool hp)
+{
+	ae9_dac_write(codec, 0x0d, hp ? 0x00 : 0x40);
+	ae9_dac_write(codec, 0x16, 0x00);
+	ae9_dac_write(codec, 0x17, 0x00);
+	ae9_dac_write(codec, 0x18, 0x00);
+	ae9_dac_write(codec, 0x19, hp ? 0x01 : 0x00);
+}
+
 /* D0.6 / D0.7: internal LED, then unmute */
 static void ae9_post_dsp_finish(struct hda_codec *codec)
 {
@@ -9283,12 +9294,8 @@ static void ae9_post_dsp_finish(struct hda_codec *codec)
 	ae9_dev49_write(codec, 0x05, 0x15);
 	ae9_dev49_write(codec, 0x02, 0x15);
 	ae9_dev49_write(codec, 0x03, 0x15);
-	/* headphone-mode THD table (DAC mode 3): 0x19 = 1, rest 0 */
-	ae9_dac_write(codec, 0x0d, 0x00);
-	ae9_dac_write(codec, 0x16, 0x00);
-	ae9_dac_write(codec, 0x17, 0x00);
-	ae9_dac_write(codec, 0x18, 0x00);
-	ae9_dac_write(codec, 0x19, 0x00);	/* Windows: 0x00 (ops:2213/6391/6537) */
+	/* Bring-up routing; ae9_apply_output_path() rewrites it on switch. */
+	ae9_dac_set_thd(codec, spec->cur_out_type == HEADPHONE_OUT);
 }
 
 /*
@@ -10245,13 +10252,8 @@ static void ae9_apply_output_path(struct hda_codec *codec)
 
 	if (ca0132_quirk(spec) != QUIRK_AE9)
 		return;
-	if (ae9_out_thd) {
-		ae9_dac_write(codec, 0x0d, hp ? 0x00 : 0x40);
-		ae9_dac_write(codec, 0x16, 0x00);
-		ae9_dac_write(codec, 0x17, 0x00);
-		ae9_dac_write(codec, 0x18, 0x00);
-		ae9_dac_write(codec, 0x19, hp ? 0x01 : 0x00);
-	}
+
+	ae9_dac_set_thd(codec, hp);
 
 	if (!ae9_out_mute)
 		return;
