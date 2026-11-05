@@ -220,7 +220,9 @@ outputs can be audible.
   the analog gain stage and is not visible to the host, so there is no ALSA control
   for it. The driver keeps the ES9038Q2M trims at 0 dB; use Master (or the knob) for
   level. On an AE-5/AE-7 the equivalent control is still `AE-5: Headphone Gain`
-  because those cards implement it digitally.
+  because those cards implement it digitally. Upgrading from a build that exposed
+  the old AE-9 control makes the first `alsactl restore` warn about the removed
+  control; `sudo alsactl store` once drops the stale entry.
 - `HP/Speaker Auto Detect` makes the output follow the **ACM 3.5 mm jack**. The ACM
   firmware does not report the 6.35 mm jack, so switch that one by hand.
 
