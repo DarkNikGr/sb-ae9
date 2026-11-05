@@ -1,7 +1,4 @@
-From 9fe25dd2a6254a897bbb96c3d8eb47bf00c7a640 Mon Sep 17 00:00:00 2001
-Message-ID: <9fe25dd2a6254a897bbb96c3d8eb47bf00c7a640.1793838736.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
-References: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From a3dbd0c88d5cecfab3d1bc5817a7f1e022caaa87 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 05/24] ALSA: hda/ca0132: AE-9 ACM: knob press = mute (display
@@ -19,10 +16,10 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 69 insertions(+), 1 deletion(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index cbab169..89dec9d 100644
+index 28c22f4..872cbd9 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
-@@ -9769,13 +9769,35 @@ static long ae9_master_level(struct hda_codec *codec, struct snd_kcontrol **kctl
+@@ -9827,13 +9827,35 @@ static long ae9_master_level(struct hda_codec *codec, struct snd_kcontrol **kctl
  /* Windows shows the level in dB (-90.0 .. 0.0), i.e. the Windows table value
   * for the current step, not the 0..99 index.
   */
@@ -59,7 +56,7 @@ index cbab169..89dec9d 100644
  	ae9_acm_display(spec, txt);
  }
  
-@@ -9839,6 +9861,51 @@ static void ae9_acm_service_buttons(struct hda_codec *codec)
+@@ -9897,6 +9919,51 @@ static void ae9_acm_service_buttons(struct hda_codec *codec)
  		snd_ctl_notify(codec->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
  }
  
@@ -111,7 +108,7 @@ index cbab169..89dec9d 100644
  /* Windows writes exactly one ACM register bit for the output: reg2 bit6 (the
   * headphone amp, item 3, F0 03 03 02 <00|40> 40). reg2 bit2 / reg7 bit0
   * (items 5/6) are the module's OWN output selector and are only ever read by
-@@ -10075,6 +10142,7 @@ static void ae9_acm_work_fn(struct work_struct *work)
+@@ -10133,6 +10200,7 @@ static void ae9_acm_work_fn(struct work_struct *work)
  	}
  	ae9_acm_knob(codec);
  	ae9_acm_service_buttons(codec);

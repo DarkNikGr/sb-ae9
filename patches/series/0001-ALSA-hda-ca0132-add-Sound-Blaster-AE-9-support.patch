@@ -1,7 +1,4 @@
-From 94050898debb35e3c4a73bef2b64e0e5d4e90a38 Mon Sep 17 00:00:00 2001
-Message-ID: <94050898debb35e3c4a73bef2b64e0e5d4e90a38.1793838735.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
-References: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From 5e7f071c17cdd562d5944dd513a8b34f56c2bf35 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:16:44 +0200
 Subject: [PATCH 01/24] ALSA: hda/ca0132: add Sound Blaster AE-9 support
@@ -28,11 +25,11 @@ by s3boun3t (https://github.com/s3boun3t/ae9_build).
 
 Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
 ---
- sound/hda/codecs/ca0132.c | 1643 +++++++++++++++++++++++++++++++++++--
- 1 file changed, 1564 insertions(+), 79 deletions(-)
+ sound/hda/codecs/ca0132.c | 1662 +++++++++++++++++++++++++++++++++++--
+ 1 file changed, 1583 insertions(+), 79 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 896091c..8931c80 100644
+index b3e768b..b4781f3 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -19,6 +19,17 @@
@@ -832,7 +829,7 @@ index 896091c..8931c80 100644
  
  	ca0113_mmio_command_set(codec, 0x30, 0x2b, 0x3f);
  	ca0113_mmio_command_set(codec, 0x30, 0x2d, 0x3f);
-@@ -8765,6 +9102,1009 @@ static void ae5_setup_defaults(struct hda_codec *codec)
+@@ -8804,6 +9141,1028 @@ static void ae5_setup_defaults(struct hda_codec *codec)
  /*
   * Setup default parameters for the Sound Blaster AE-7 DSP.
   */
@@ -997,6 +994,29 @@ index 896091c..8931c80 100644
 +		ae9_dev49_write(codec, d49_reg[i], d49_val[i]);
 +}
 +
++/*
++ * ES9038 output-routing ("THD") table, written exactly as Windows does on
++ * every output change (docs/reverse-engineering/ctxhda-acm-analysis.md
++ * section 10.4):
++ *   DAC mode 3 (headphone) = 0x0d 0, 0x16..0x18 0, 0x19 1;
++ *   DAC mode 4 (line-out)  = 0x0d 0x40, 0x16..0x18 0, 0x19 0.
++ * Called at bring-up and on every output switch, so the DAC never keeps the
++ * routing of a previous mode.  Note that this table does not mute the
++ * unselected output on this board: ae9_out_mute still has to do that.
++ *
++ * Keep it that way: on 2026-11-05 the tone was still audible from the
++ * line-out with ae9_out_mute=0 and 0x19=1, so the routing alone is not an
++ * output switch.
++ */
++static void ae9_dac_set_thd(struct hda_codec *codec, bool hp)
++{
++	ae9_dac_write(codec, 0x0d, hp ? 0x00 : 0x40);
++	ae9_dac_write(codec, 0x16, 0x00);
++	ae9_dac_write(codec, 0x17, 0x00);
++	ae9_dac_write(codec, 0x18, 0x00);
++	ae9_dac_write(codec, 0x19, hp ? 0x01 : 0x00);
++}
++
 +/* D0.6 / D0.7: internal LED, then unmute */
 +static void ae9_post_dsp_finish(struct hda_codec *codec)
 +{
@@ -1017,12 +1037,8 @@ index 896091c..8931c80 100644
 +	ae9_dev49_write(codec, 0x02, 0x15);
 +	ae9_dev49_write(codec, 0x03, 0x15);
 +	ae9_dev49_write(codec, 0x0a, 0x06);
-+	/* headphone-mode THD table (DAC mode 3): 0x19 = 1, rest 0 */
-+	ae9_dac_write(codec, 0x0d, 0x00);
-+	ae9_dac_write(codec, 0x16, 0x00);
-+	ae9_dac_write(codec, 0x17, 0x00);
-+	ae9_dac_write(codec, 0x18, 0x00);
-+	ae9_dac_write(codec, 0x19, 0x00);	/* Windows: 0x00 (ops:2213/6391/6537) */
++	/* Bring-up routing; ae9_apply_output_path() rewrites it on switch. */
++	ae9_dac_set_thd(codec, spec->cur_out_type == HEADPHONE_OUT);
 +}
 +
 +/*
@@ -1842,7 +1858,7 @@ index 896091c..8931c80 100644
  static void ae7_setup_defaults(struct hda_codec *codec)
  {
  	struct ca0132_spec *spec = codec->spec;
-@@ -8925,6 +10265,7 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
+@@ -8964,6 +10323,7 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
  	case QUIRK_SBZ:
  	case QUIRK_R3D:
  	case QUIRK_AE5:
@@ -1850,7 +1866,7 @@ index 896091c..8931c80 100644
  		if (request_firmware(&fw_entry, DESKTOP_EFX_FILE,
  					codec->card->dev) != 0)
  			codec_dbg(codec, "Desktop firmware not found.");
-@@ -9127,6 +10468,7 @@ static void ca0132_init_chip(struct hda_codec *codec)
+@@ -9166,6 +10526,7 @@ static void ca0132_init_chip(struct hda_codec *codec)
  	mutex_init(&spec->ae5_strip_mutex);
  	spec->ae5_strip_cur_num_leds = 10;
  #endif
@@ -1858,7 +1874,7 @@ index 896091c..8931c80 100644
  
  	/*
  	 * The Windows driver always does this upon startup, which seems to
-@@ -9186,6 +10528,13 @@ static void ca0132_init_chip(struct hda_codec *codec)
+@@ -9225,6 +10586,13 @@ static void ca0132_init_chip(struct hda_codec *codec)
  	spec->voicefx_val = 0;
  	spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID] = 1;
  	spec->effects_switch[CRYSTAL_VOICE - EFFECT_START_NID] = 0;
@@ -1872,7 +1888,7 @@ index 896091c..8931c80 100644
  
  	/*
  	 * The ZxR doesn't have a front panel header, and it's line-in is on
-@@ -9218,9 +10567,9 @@ static void sbz_region2_exit(struct hda_codec *codec)
+@@ -9257,9 +10625,9 @@ static void sbz_region2_exit(struct hda_codec *codec)
  	unsigned int i;
  
  	for (i = 0; i < 4; i++)
@@ -1884,7 +1900,7 @@ index 896091c..8931c80 100644
  
  	ca0113_mmio_gpio_set(codec, 0, false);
  	ca0113_mmio_gpio_set(codec, 1, false);
-@@ -9502,8 +10851,8 @@ static void sbz_pre_dsp_setup(struct hda_codec *codec)
+@@ -9541,8 +10909,8 @@ static void sbz_pre_dsp_setup(struct hda_codec *codec)
  {
  	struct ca0132_spec *spec = codec->spec;
  
@@ -1895,7 +1911,7 @@ index 896091c..8931c80 100644
  
  	chipio_write(codec, 0x18b0a4, 0x000000c2);
  
-@@ -9619,7 +10968,7 @@ static void ca0132_mmio_init_sbz(struct hda_codec *codec)
+@@ -9658,7 +11026,7 @@ static void ca0132_mmio_init_sbz(struct hda_codec *codec)
  
  	addr = ca0113_mmio_init_address_sbz;
  	for (i = 0; i < 3; i++)
@@ -1904,7 +1920,7 @@ index 896091c..8931c80 100644
  
  	cur_addr = i;
  	switch (ca0132_quirk(spec)) {
-@@ -9642,7 +10991,7 @@ static void ca0132_mmio_init_sbz(struct hda_codec *codec)
+@@ -9681,7 +11049,7 @@ static void ca0132_mmio_init_sbz(struct hda_codec *codec)
  	}
  
  	for (i = 0; i < 2; i++)
@@ -1913,7 +1929,7 @@ index 896091c..8931c80 100644
  
  	cur_addr += i;
  
-@@ -9658,39 +11007,50 @@ static void ca0132_mmio_init_sbz(struct hda_codec *codec)
+@@ -9697,39 +11065,50 @@ static void ca0132_mmio_init_sbz(struct hda_codec *codec)
  	}
  
  	for (i = 0; i < count; i++)
@@ -1974,7 +1990,7 @@ index 896091c..8931c80 100644
  }
  
  static void ca0132_mmio_init(struct hda_codec *codec)
-@@ -9704,6 +11064,7 @@ static void ca0132_mmio_init(struct hda_codec *codec)
+@@ -9743,6 +11122,7 @@ static void ca0132_mmio_init(struct hda_codec *codec)
  		ca0132_mmio_init_sbz(codec);
  		break;
  	case QUIRK_AE5:
@@ -1982,7 +1998,7 @@ index 896091c..8931c80 100644
  		ca0132_mmio_init_ae5(codec);
  		break;
  	default:
-@@ -9752,19 +11113,19 @@ static void ae5_register_set(struct hda_codec *codec)
+@@ -9791,19 +11171,19 @@ static void ae5_register_set(struct hda_codec *codec)
  	}
  
  	for (i = cur_addr = 0; i < 3; i++, cur_addr++)
@@ -2006,7 +2022,7 @@ index 896091c..8931c80 100644
  
  	if (ca0132_quirk(spec) == QUIRK_AE7) {
  		ca0113_mmio_command_set_type2(codec, 0x48, 0x07, 0x83);
-@@ -9776,7 +11137,7 @@ static void ae5_register_set(struct hda_codec *codec)
+@@ -9815,7 +11195,7 @@ static void ae5_register_set(struct hda_codec *codec)
  	chipio_8051_write_direct(codec, 0x90, 0x00);
  	chipio_8051_write_direct(codec, 0x90, 0x10);
  
@@ -2015,7 +2031,7 @@ index 896091c..8931c80 100644
  		ca0113_mmio_command_set(codec, 0x48, 0x07, 0x83);
  }
  
-@@ -9785,9 +11146,53 @@ static void ae5_register_set(struct hda_codec *codec)
+@@ -9824,9 +11204,53 @@ static void ae5_register_set(struct hda_codec *codec)
   * here so they don't clutter up the main ca0132_init function
   * anymore than they have to.
   */
@@ -2069,7 +2085,7 @@ index 896091c..8931c80 100644
  
  	ca0132_alt_vol_setup(codec);
  
-@@ -9821,6 +11226,30 @@ static void ca0132_alt_init(struct hda_codec *codec)
+@@ -9860,6 +11284,30 @@ static void ca0132_alt_init(struct hda_codec *codec)
  		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
  		ca0113_mmio_command_set(codec, 0x30, 0x32, 0x3f);
  		break;
@@ -2100,7 +2116,7 @@ index 896091c..8931c80 100644
  	case QUIRK_AE7:
  		ca0132_gpio_init(codec);
  		chipio_8051_write_pll_pmu(codec, 0x49, 0x88);
-@@ -9867,6 +11296,9 @@ static int ca0132_init(struct hda_codec *codec)
+@@ -9906,6 +11354,9 @@ static int ca0132_init(struct hda_codec *codec)
  		} else {
  			if (ca0132_quirk(spec) == QUIRK_SBZ)
  				sbz_dsp_startup_check(codec);
@@ -2110,7 +2126,7 @@ index 896091c..8931c80 100644
  			return 0;
  		}
  	}
-@@ -9880,7 +11312,9 @@ static int ca0132_init(struct hda_codec *codec)
+@@ -9919,7 +11370,9 @@ static int ca0132_init(struct hda_codec *codec)
  
  	CLASS(snd_hda_power_pm, pm)(codec);
  
@@ -2121,7 +2137,7 @@ index 896091c..8931c80 100644
  		ae5_register_set(codec);
  
  	ca0132_init_params(codec);
-@@ -9907,6 +11341,9 @@ static int ca0132_init(struct hda_codec *codec)
+@@ -9946,6 +11399,9 @@ static int ca0132_init(struct hda_codec *codec)
  	case QUIRK_AE5:
  		ae5_setup_defaults(codec);
  		break;
@@ -2131,7 +2147,7 @@ index 896091c..8931c80 100644
  	case QUIRK_AE7:
  		ae7_setup_defaults(codec);
  		break;
-@@ -9981,6 +11418,8 @@ static void ca0132_free(struct hda_codec *codec)
+@@ -10020,6 +11476,8 @@ static void ca0132_free(struct hda_codec *codec)
  	struct ca0132_spec *spec = codec->spec;
  
  	cancel_delayed_work_sync(&spec->unsol_hp_work);
@@ -2140,7 +2156,7 @@ index 896091c..8931c80 100644
  	snd_hda_power_up(codec);
  	switch (ca0132_quirk(spec)) {
  	case QUIRK_SBZ:
-@@ -9993,6 +11432,7 @@ static void ca0132_free(struct hda_codec *codec)
+@@ -10032,6 +11490,7 @@ static void ca0132_free(struct hda_codec *codec)
  		r3d_exit_chip(codec);
  		break;
  	case QUIRK_AE5:
@@ -2148,7 +2164,7 @@ index 896091c..8931c80 100644
  		ae5_exit_chip(codec);
  		break;
  	case QUIRK_AE7:
-@@ -10009,6 +11449,8 @@ static void ca0132_free(struct hda_codec *codec)
+@@ -10048,6 +11507,8 @@ static void ca0132_free(struct hda_codec *codec)
  	ca0132_exit_chip(codec);
  
  	snd_hda_power_down(codec);
@@ -2157,7 +2173,7 @@ index 896091c..8931c80 100644
  #ifdef CONFIG_PCI
  	if (spec->mem_base)
  		pci_iounmap(codec->bus->pci, spec->mem_base);
-@@ -10073,6 +11515,10 @@ static void ca0132_config(struct hda_codec *codec)
+@@ -10112,6 +11573,10 @@ static void ca0132_config(struct hda_codec *codec)
  		codec_dbg(codec, "%s: QUIRK_AE5 applied.\n", __func__);
  		snd_hda_apply_pincfgs(codec, ae5_pincfgs);
  		break;
@@ -2168,7 +2184,7 @@ index 896091c..8931c80 100644
  	case QUIRK_AE7:
  		codec_dbg(codec, "%s: QUIRK_AE7 applied.\n", __func__);
  		snd_hda_apply_pincfgs(codec, ae7_pincfgs);
-@@ -10158,6 +11604,7 @@ static void ca0132_config(struct hda_codec *codec)
+@@ -10197,6 +11662,7 @@ static void ca0132_config(struct hda_codec *codec)
  		spec->dig_in = 0x09;
  		break;
  	case QUIRK_AE5:
@@ -2176,7 +2192,7 @@ index 896091c..8931c80 100644
  	case QUIRK_AE7:
  		spec->num_outputs = 2;
  		spec->out_pins[0] = 0x0B; /* Line out */
-@@ -10341,6 +11788,19 @@ static int ca0132_generic_probe(struct hda_codec *codec)
+@@ -10380,6 +11846,19 @@ static int ca0132_generic_probe(struct hda_codec *codec)
  	return 0;
  }
  
@@ -2196,7 +2212,7 @@ index 896091c..8931c80 100644
  static void ca0132_codec_remove(struct hda_codec *codec)
  {
  	struct ca0132_spec *spec = codec->spec;
-@@ -10382,6 +11842,21 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -10421,6 +11900,21 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  		break;
  	case QUIRK_GENERIC:
  		return ca0132_generic_probe(codec);
@@ -2218,7 +2234,7 @@ index 896091c..8931c80 100644
  	default:
  		break;
  	}
-@@ -10413,6 +11888,10 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -10452,6 +11946,10 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  		spec->mixers[0] = desktop_mixer;
  		snd_hda_codec_set_name(codec, "Sound BlasterX AE-5");
  		break;
@@ -2229,7 +2245,7 @@ index 896091c..8931c80 100644
  	case QUIRK_AE7:
  		spec->mixers[0] = desktop_mixer;
  		snd_hda_codec_set_name(codec, "Sound Blaster AE-7");
-@@ -10427,6 +11906,7 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -10466,6 +11964,7 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  	case QUIRK_SBZ:
  	case QUIRK_R3D:
  	case QUIRK_AE5:
@@ -2237,7 +2253,7 @@ index 896091c..8931c80 100644
  	case QUIRK_AE7:
  	case QUIRK_ZXR:
  		spec->use_alt_controls = true;
-@@ -10459,6 +11939,8 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -10498,6 +11997,8 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  	spec->base_exit_verbs = ca0132_base_exit_verbs;
  
  	INIT_DELAYED_WORK(&spec->unsol_hp_work, ca0132_unsol_hp_delayed);
@@ -2246,7 +2262,7 @@ index 896091c..8931c80 100644
  
  	ca0132_init_chip(codec);
  
-@@ -10531,6 +12013,9 @@ static int ca0132_codec_suspend(struct hda_codec *codec)
+@@ -10570,6 +12071,9 @@ static int ca0132_codec_suspend(struct hda_codec *codec)
  		return 0;
  
  	cancel_delayed_work_sync(&spec->unsol_hp_work);

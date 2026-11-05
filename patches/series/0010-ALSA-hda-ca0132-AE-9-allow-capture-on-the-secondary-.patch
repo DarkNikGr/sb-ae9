@@ -1,7 +1,4 @@
-From f0771cdad3412946244d3325ece11aec91299528 Mon Sep 17 00:00:00 2001
-Message-ID: <f0771cdad3412946244d3325ece11aec91299528.1793838736.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
-References: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From 5f877e5f2bd49196b5c78ae6bb8fe14dcfdaf7c8 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 10/24] ALSA: hda/ca0132: AE-9: allow capture on the secondary
@@ -19,7 +16,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 20 insertions(+), 12 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index c7968bc..827ba24 100644
+index 509e502..b1e7cf9 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -31,26 +31,28 @@ static int ae9_acm_poll = 1;

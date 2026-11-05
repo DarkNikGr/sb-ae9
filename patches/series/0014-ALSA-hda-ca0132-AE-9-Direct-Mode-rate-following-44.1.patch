@@ -1,7 +1,4 @@
-From 5edc1eb1a22bc3e1be429024b4c362b11652a2fa Mon Sep 17 00:00:00 2001
-Message-ID: <5edc1eb1a22bc3e1be429024b4c362b11652a2fa.1793838736.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
-References: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From fb20265ff63e9b22feb444fc4d78b71dd03d54d8 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 14/24] ALSA: hda/ca0132: AE-9: Direct Mode rate following
@@ -47,7 +44,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 97 insertions(+)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 75b1328..fc2e5d4 100644
+index bb21294..79c7315 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -62,6 +62,16 @@ MODULE_PARM_DESC(ae9_capture, "AE-9: expose capture streams on the MAIN codec (D
@@ -116,7 +113,7 @@ index 75b1328..fc2e5d4 100644
  	if (ae9_capture_blocked(codec)) {
  		codec_info(codec, "AE-9: capture streams not created (ae9_capture=0)\n");
  		goto digital;
-@@ -9246,6 +9277,72 @@ static void ae9_pll_set(struct hda_codec *codec)
+@@ -9285,6 +9316,72 @@ static void ae9_pll_set(struct hda_codec *codec)
  		chipio_8051_write_pll_pmu(codec, addr[i], data[i]);
  }
  

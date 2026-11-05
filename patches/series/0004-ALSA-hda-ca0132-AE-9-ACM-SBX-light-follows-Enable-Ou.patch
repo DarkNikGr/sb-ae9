@@ -1,7 +1,4 @@
-From b79a8cf8d05352d4a56931e1c1e6a80bfef701dd Mon Sep 17 00:00:00 2001
-Message-ID: <b79a8cf8d05352d4a56931e1c1e6a80bfef701dd.1793838736.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
-References: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From 786a2ce00f9738ccb64f76734b6b4e8bfc8be4c6 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 04/24] ALSA: hda/ca0132: AE-9 ACM: SBX light follows Enable
@@ -19,7 +16,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 65 insertions(+), 2 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index e15600d..cbab169 100644
+index 2ab0c65..28c22f4 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -1169,6 +1169,7 @@ struct ca0132_spec {
@@ -39,7 +36,7 @@ index e15600d..cbab169 100644
  		return ca0132_pe_switch_set(codec);
  	}
  
-@@ -9780,6 +9783,62 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
+@@ -9838,6 +9841,62 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
   * HP select, reg2 bit6 = HP amp / HP_Mute off, reg7 bit0 = speaker select) and
   * show "-HP-"/"-SP-" for ~5 s like Windows (AcmShowSpeakerChangeMaxCounts).
   */
@@ -102,7 +99,7 @@ index e15600d..cbab169 100644
  /* Windows writes exactly one ACM register bit for the output: reg2 bit6 (the
   * headphone amp, item 3, F0 03 03 02 <00|40> 40). reg2 bit2 / reg7 bit0
   * (items 5/6) are the module's OWN output selector and are only ever read by
-@@ -9847,7 +9906,6 @@ static bool ae9_acm_init(struct hda_codec *codec)
+@@ -9905,7 +9964,6 @@ static bool ae9_acm_init(struct hda_codec *codec)
  	static const u8 filt[]  = { 0xf0, 0x43, 0x04, 0x64, 0x00, 0xf4, 0x01, 0xf7 };
  	static const u8 tlong1[] = { 0xf0, 0x32, 0x03, 0x01, 0x88, 0x13, 0xf7 };
  	static const u8 cmd05[] = { 0xf0, 0x05, 0x03, 0x02, 0x01, 0x00, 0xf7 };
@@ -110,7 +107,7 @@ index e15600d..cbab169 100644
  	static const u8 led[]   = { 0xf0, 0x22, 0x02, 0x02, 0x01, 0xf7 };
  	static const u8 blink[] = { 0xf0, 0x21, 0x03, 0x02, 0x00, 0x00, 0xf7 };
  	u8 rx[16], lcr;
-@@ -9907,7 +9965,7 @@ static bool ae9_acm_init(struct hda_codec *codec)
+@@ -9965,7 +10023,7 @@ static bool ae9_acm_init(struct hda_codec *codec)
  	ae9_acm_cmd(spec, filt, sizeof(filt));		/* encoder filter window 100..500 */
  	ae9_acm_cmd(spec, tlong1, sizeof(tlong1));	/* AcmSBXLongPressMs 5000 */
  	ae9_acm_cmd(spec, cmd05, sizeof(cmd05));	/* F0 05 03 02 01 00 (Windows init) */
@@ -119,7 +116,7 @@ index e15600d..cbab169 100644
  	ae9_acm_cmd(spec, led, sizeof(led));		/* encoder LED on */
  	ae9_acm_display(spec, "AE-9");
  	ae9_acm_cmd(spec, blink, sizeof(blink));	/* blink interval 0 */
-@@ -10016,6 +10074,11 @@ static void ae9_acm_work_fn(struct work_struct *work)
+@@ -10074,6 +10132,11 @@ static void ae9_acm_work_fn(struct work_struct *work)
  		ae9_acm_check_regs(codec);
  	}
  	ae9_acm_knob(codec);

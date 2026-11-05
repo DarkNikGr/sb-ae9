@@ -1,7 +1,4 @@
-From 91e55847475d240a98111b149468497764eea734 Mon Sep 17 00:00:00 2001
-Message-ID: <91e55847475d240a98111b149468497764eea734.1793838736.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
-References: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From 4cebd6e7ba2aa8bdf77c7873792b0538ca2484ff Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:39 +0200
 Subject: [PATCH 20/24] ALSA: hda/ca0132: AE-9: align hardware gain and ACM
@@ -22,7 +19,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 92 insertions(+), 78 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 1637fee..9eadc9c 100644
+index 9b10419..42ea3fd 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -1215,7 +1215,7 @@ struct ca0132_spec {
@@ -168,7 +165,7 @@ index 1637fee..9eadc9c 100644
  	snd_hda_override_amp_caps(codec, nid, dir, caps);
  }
  
-@@ -10211,29 +10202,32 @@ static void ae9_acm_display(struct ca0132_spec *spec, const char *txt)
+@@ -10269,29 +10260,32 @@ static void ae9_acm_display(struct ca0132_spec *spec, const char *txt)
   * scaled copy in vnode_lvol (using the latter as the knob's base made every
   * tick shrink the level when the follower was below 100%).
   */
@@ -212,7 +209,7 @@ index 1637fee..9eadc9c 100644
  static bool ae9_master_muted(struct hda_codec *codec)
  {
  	struct snd_kcontrol *kctl = snd_hda_find_mixer_ctl(codec, "Master Playback Switch");
-@@ -10253,16 +10247,34 @@ static bool ae9_master_muted(struct hda_codec *codec)
+@@ -10311,16 +10305,34 @@ static bool ae9_master_muted(struct hda_codec *codec)
  
  static void ae9_acm_show_volume(struct ca0132_spec *spec)
  {
@@ -254,7 +251,7 @@ index 1637fee..9eadc9c 100644
  	ae9_acm_display_frame(spec, txt, false);
  }
  
-@@ -10597,9 +10609,9 @@ static bool ae9_acm_init(struct hda_codec *codec)
+@@ -10658,9 +10670,9 @@ static bool ae9_acm_init(struct hda_codec *codec)
  /* Volume knob: F0 C2 00 F7 -> RX 8: [3] dir, [4] detents, [5..6] ms (fw >= 0x01957D60).
   * Mapping decoded from CtxHda 0x3f8a8 + board 0x35298 (2026-09-08):
   *  - dir 0 = clockwise = louder, dir 1 = quieter (the board subtracts on dir 1);
@@ -267,7 +264,7 @@ index 1637fee..9eadc9c 100644
   * Windows' ms-based acceleration (x2/x3/x4 for >4 detents per 50 ms poll) is
   * deliberately NOT applied: our poll is slower, so it fired on normal turning
   * and produced +40..+64 jumps.
-@@ -10612,7 +10624,7 @@ static void ae9_acm_knob(struct hda_codec *codec)
+@@ -10673,7 +10685,7 @@ static void ae9_acm_knob(struct hda_codec *codec)
  	struct snd_ctl_elem_value *uctl;
  	u8 rx[8];
  	int n, dir, steps, delta;
@@ -276,7 +273,7 @@ index 1637fee..9eadc9c 100644
  
  	if (!ae9_acm_knob_tx(spec, q, sizeof(q)))
  		return;
-@@ -10635,18 +10647,20 @@ static void ae9_acm_knob(struct hda_codec *codec)
+@@ -10696,18 +10708,20 @@ static void ae9_acm_knob(struct hda_codec *codec)
  	spec->ae9_acm_turbo = 10;
  	if (!delta)
  		return;

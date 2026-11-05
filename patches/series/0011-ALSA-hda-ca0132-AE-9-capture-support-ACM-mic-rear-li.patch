@@ -1,7 +1,4 @@
-From 721bc007bdef9eb2fde326adf6965d12053cb80e Mon Sep 17 00:00:00 2001
-Message-ID: <721bc007bdef9eb2fde326adf6965d12053cb80e.1793838736.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
-References: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From 175cb68e07ae665ef1fd06b1255d9a5ef1f01d7b Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 11/24] ALSA: hda/ca0132: AE-9 capture support (ACM mic + rear
@@ -28,7 +25,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 17 insertions(+), 3 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 827ba24..17ff384 100644
+index b1e7cf9..39cedc8 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -52,7 +52,16 @@ MODULE_PARM_DESC(ae9_out_mute, "AE-9: mute the unselected output when switching
@@ -62,7 +59,7 @@ index 827ba24..17ff384 100644
  static int ca0132_build_pcms(struct hda_codec *codec)
  {
  	struct ca0132_spec *spec = codec->spec;
-@@ -10309,12 +10319,16 @@ static void ae9_setup_defaults(struct hda_codec *codec)
+@@ -10370,12 +10380,16 @@ static void ae9_setup_defaults(struct hda_codec *codec)
  	 * all be in place before any stream runs.
  	 */
  	ae9_dsp_scp_startup(codec);		/* W1: DSP master-control "go" */

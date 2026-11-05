@@ -1,7 +1,8 @@
-From b14d7d7146a22d4d5b205506ceb2ea54ff90f650 Mon Sep 17 00:00:00 2001
+From a74209a2306790426d8c2ee79de184e4b73f9120 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 03:00:07 +0200
-Subject: [PATCH 24/24] ALSA: hda/ca0132: fix the AE-5 headphone gain item names
+Subject: [PATCH 24/24] ALSA: hda/ca0132: fix the AE-5 headphone gain item
+ names
 
 The preset names already carry the opening parenthesis and range, and
 the suffix is appended with an extra space, so the control showed
@@ -14,7 +15,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 43ab98f..f101740 100644
+index 1b2817a..063a3a1 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -6243,7 +6243,7 @@ static int ca0132_alt_mic_boost_put(struct snd_kcontrol *kcontrol,
@@ -26,3 +27,6 @@ index 43ab98f..f101740 100644
  	char namestr[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
  
  	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+-- 
+2.56.0
+

@@ -1,7 +1,6 @@
-From a6001fb7999dce42db95525b1229fee77a6fa3ad Mon Sep 17 00:00:00 2001
-Message-ID: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From a74209a2306790426d8c2ee79de184e4b73f9120 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
-Date: Thu, 5 Nov 2026 02:32:15 +0200
+Date: Thu, 5 Nov 2026 22:17:06 +0200
 Subject: [PATCH 00/24] ALSA: hda/ca0132: add Sound Blaster AE-9 support
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -19,7 +18,8 @@ hardware protocol can be reviewed in order:
 
   - base quirk, PCI/pincfg, the Windows-style DSP/PLL/DAC/GPIO bring-up,
     the output-connect overlay and the ACM UART service;
-  - output routing, jack detection and auto-detect;
+  - output routing (including the ES9038 routing table on every
+    switch), jack detection and auto-detect;
   - SBX light, knob/button handling and the 500 ms ACM service;
   - capture (secondary-codec line-in/S-PDIF and the opt-in main-codec
     microphone);
@@ -40,7 +40,6 @@ The firmware output-connect overlay is extracted from Creative's
 Windows package at install time and is not part of this series.
 
 DarkNikGr
-
 
 DarkNikGr (24):
   ALSA: hda/ca0132: add Sound Blaster AE-9 support
@@ -72,8 +71,8 @@ DarkNikGr (24):
   ALSA: hda/ca0132: leave the AE-9 headphone gain to the ACM
   ALSA: hda/ca0132: fix the AE-5 headphone gain item names
 
- sound/hda/codecs/ca0132.c | 2729 +++++++++++++++++++++++++++++++++++--
- 1 file changed, 2644 insertions(+), 115 deletions(-)
+ sound/hda/codecs/ca0132.c | 3047 ++++++++++++++++++++++++++++++++++---
+ 1 file changed, 2799 insertions(+), 248 deletions(-)
 
 -- 
 2.56.0

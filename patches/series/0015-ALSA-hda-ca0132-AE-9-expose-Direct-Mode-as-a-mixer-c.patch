@@ -1,7 +1,4 @@
-From 51342403bcd87f25114b27796f18f53ddf099d96 Mon Sep 17 00:00:00 2001
-Message-ID: <51342403bcd87f25114b27796f18f53ddf099d96.1793838736.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
-References: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From 43fd7c83371991d83f6c03fb4d55d3695932fa6a Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 15/24] ALSA: hda/ca0132: AE-9: expose Direct Mode as a mixer
@@ -21,7 +18,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 55 insertions(+), 3 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index fc2e5d4..b92d618 100644
+index 79c7315..16ba749 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -7132,6 +7132,51 @@ static int ca0132_alt_add_svm_enum(struct hda_codec *codec)

@@ -1,7 +1,4 @@
-From f5de0581b2f075d5c5c051e3bce61bb1629936ec Mon Sep 17 00:00:00 2001
-Message-ID: <f5de0581b2f075d5c5c051e3bce61bb1629936ec.1793838736.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
-References: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From 73bd21f634307b042ab3a00534e6eca63e0011d2 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:39 +0200
 Subject: [PATCH 19/24] ALSA: hda/ca0132: AE-9: share the headphone and
@@ -23,7 +20,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 47 insertions(+), 8 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 2e03df1..1637fee 100644
+index 374366d..9b10419 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -7494,6 +7494,10 @@ static const char * const ca0132_alt_follower_pfxs[] = {
@@ -102,7 +99,7 @@ index 2e03df1..1637fee 100644
  	}
  
  	/* Add in and out effects controls.
-@@ -10170,10 +10205,11 @@ static void ae9_acm_display(struct ca0132_spec *spec, const char *txt)
+@@ -10228,10 +10263,11 @@ static void ae9_acm_display(struct ca0132_spec *spec, const char *txt)
  	ae9_acm_display_frame(spec, txt, true);
  }
  
@@ -118,7 +115,7 @@ index 2e03df1..1637fee 100644
   */
  static long ae9_master_level(struct hda_codec *codec, struct snd_kcontrol **kctlp)
  {
-@@ -10609,7 +10645,7 @@ static void ae9_acm_knob(struct hda_codec *codec)
+@@ -10670,7 +10706,7 @@ static void ae9_acm_knob(struct hda_codec *codec)
  		return;
  	uctl->value.integer.value[0] = v;
  	uctl->value.integer.value[1] = v;
@@ -127,7 +124,7 @@ index 2e03df1..1637fee 100644
  	kfree(uctl);
  	snd_ctl_notify(codec->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
  	spec->ae9_acm_disp_dirty = true;
-@@ -12577,7 +12613,10 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -12638,7 +12674,10 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  		snd_hda_codec_set_name(codec, "Sound BlasterX AE-5");
  		break;
  	case QUIRK_AE9:

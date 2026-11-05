@@ -1,7 +1,4 @@
-From 86a5c945f24db1a57363f602f0b3706b8d650899 Mon Sep 17 00:00:00 2001
-Message-ID: <86a5c945f24db1a57363f602f0b3706b8d650899.1793838736.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
-References: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From fba2eed8a633b59bb428d243cb96431bf3eb9b9e Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 12/24] ALSA: hda/ca0132: AE-9: hide the unwired Front
@@ -18,7 +15,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 24 insertions(+), 11 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 17ff384..2fa1d15 100644
+index 39cedc8..bf96815 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -6240,14 +6240,31 @@ static int ae5_sound_filter_put(struct snd_kcontrol *kcontrol,

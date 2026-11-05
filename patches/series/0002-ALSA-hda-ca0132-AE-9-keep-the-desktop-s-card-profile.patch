@@ -1,7 +1,4 @@
-From 36afde2c925c9e23e882e1dda6a340a1240722f3 Mon Sep 17 00:00:00 2001
-Message-ID: <36afde2c925c9e23e882e1dda6a340a1240722f3.1793838735.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
-References: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From 75961d2a3eff84073f761a3d24c12b195f762a37 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 02/24] ALSA: hda/ca0132: AE-9: keep the desktop's card
@@ -24,7 +21,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 9 insertions(+)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 8931c80..99d9e4d 100644
+index b4781f3..cfdcb91 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -7071,9 +7071,18 @@ static int ca0132_alt_add_svm_enum(struct hda_codec *codec)

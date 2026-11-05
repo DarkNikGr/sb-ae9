@@ -1,7 +1,4 @@
-From f3a9f4bf24d64fab45b55336159f3fe9b99d8291 Mon Sep 17 00:00:00 2001
-Message-ID: <f3a9f4bf24d64fab45b55336159f3fe9b99d8291.1793838736.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
-References: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From 92034819e2ea7e4806717babfe81ba978035bd2c Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 16/24] ALSA: hda/ca0132: AE-9: Direct Mode effects-off, stereo
@@ -31,7 +28,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 63 insertions(+), 1 deletion(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index b92d618..e9c8e65 100644
+index 16ba749..ae5ffa0 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -4177,6 +4177,19 @@ static void r3di_gpio_dsp_status_set(struct hda_codec *codec,

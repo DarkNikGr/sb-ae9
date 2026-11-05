@@ -1,7 +1,4 @@
-From 876cdc1b3d06dc7bb9bb199c6ef67789c6eaf289 Mon Sep 17 00:00:00 2001
-Message-ID: <876cdc1b3d06dc7bb9bb199c6ef67789c6eaf289.1793838736.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
-References: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From 7917df592ffd9115da01f969218637a8b5dd982a Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 07/24] ALSA: hda/ca0132: use system_dfl_wq for the ACM service
@@ -18,7 +15,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 7 insertions(+), 5 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index f510245..4383c6f 100644
+index d6a09c1..94cdddb 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -37,6 +37,9 @@ MODULE_PARM_DESC(ae9_acm_poll, "AE-9 ACM: 1 = live knob/display/button service (
@@ -31,15 +28,15 @@ index f510245..4383c6f 100644
  static bool ae9_capture;
  module_param(ae9_capture, bool, 0444);
  MODULE_PARM_DESC(ae9_capture, "AE-9: expose capture (recording) streams; the capture path is not brought up and opening it hard-locks the machine (default 0)");
-@@ -9319,7 +9322,6 @@ static void ae9_post_dsp_finish(struct hda_codec *codec)
+@@ -9381,7 +9384,6 @@ static void ae9_post_dsp_finish(struct hda_codec *codec)
  	ae9_dev49_write(codec, 0x05, 0x15);
  	ae9_dev49_write(codec, 0x02, 0x15);
  	ae9_dev49_write(codec, 0x03, 0x15);
 -	ae9_dev49_write(codec, 0x0a, 0x06);
- 	/* headphone-mode THD table (DAC mode 3): 0x19 = 1, rest 0 */
- 	ae9_dac_write(codec, 0x0d, 0x00);
- 	ae9_dac_write(codec, 0x16, 0x00);
-@@ -10182,9 +10184,9 @@ static void ae9_acm_work_fn(struct work_struct *work)
+ 	/* Bring-up routing; ae9_apply_output_path() rewrites it on switch. */
+ 	ae9_dac_set_thd(codec, spec->cur_out_type == HEADPHONE_OUT);
+ }
+@@ -10240,9 +10242,9 @@ static void ae9_acm_work_fn(struct work_struct *work)
  out:
  	if (spec->ae9_acm_turbo > 0) {
  		spec->ae9_acm_turbo--;
@@ -51,7 +48,7 @@ index f510245..4383c6f 100644
  	}
  }
  
-@@ -10267,7 +10269,7 @@ static void ae9_setup_defaults(struct hda_codec *codec)
+@@ -10325,7 +10327,7 @@ static void ae9_setup_defaults(struct hda_codec *codec)
  	codec_info(codec, "AE-9: converter bring-up done (capture-based, OutFX %s)\n",
  		   spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID] ? "on" : "off");
  	ae9_dump_dsp_output_state(codec, "idle after bring-up");
@@ -60,7 +57,7 @@ index f510245..4383c6f 100644
  }
  
  static void ae7_setup_defaults(struct hda_codec *codec)
-@@ -11462,7 +11464,7 @@ static int ca0132_init(struct hda_codec *codec)
+@@ -11520,7 +11522,7 @@ static int ca0132_init(struct hda_codec *codec)
  			if (ca0132_quirk(spec) == QUIRK_SBZ)
  				sbz_dsp_startup_check(codec);
  			if (ca0132_quirk(spec) == QUIRK_AE9)

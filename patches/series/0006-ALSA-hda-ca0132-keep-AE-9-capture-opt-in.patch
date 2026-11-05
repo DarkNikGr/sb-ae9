@@ -1,7 +1,4 @@
-From 4e44a1086c2dae5ffd6de260107f9b0f283b35b4 Mon Sep 17 00:00:00 2001
-Message-ID: <4e44a1086c2dae5ffd6de260107f9b0f283b35b4.1793838736.git.mitakidisnikos@gmail.com>
-In-Reply-To: <cover.1793838735.git.mitakidisnikos@gmail.com>
-References: <cover.1793838735.git.mitakidisnikos@gmail.com>
+From 9102a4989887f90a55f712bd2b7439c6381268d3 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 06/24] ALSA: hda/ca0132: keep AE-9 capture opt-in
@@ -19,7 +16,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 31 insertions(+), 6 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 89dec9d..f510245 100644
+index 872cbd9..d6a09c1 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -29,7 +29,17 @@
