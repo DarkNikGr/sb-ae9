@@ -16,6 +16,31 @@ the machine. Everything runs under plain ALSA, PipeWire and WirePlumber.
 
 ---
 
+## Hardware
+
+What the card and its Audio Control Module (ACM) physically provide. The next table
+is what this driver exposes.
+
+| Block | Detail |
+|---|---|
+| PCI | `1102:0010`, subsystem `1102:0071` (PCIe) |
+| Codecs | 2× CA0132 Sound Core3D (main + secondary) |
+| Headphone DAC | ES9038Q2M (`0x48`) |
+| Line-out DAC | SABRE9006 (`0x49`) |
+| ACM | Volume knob, dB display, mute, SBX button/light, output toggle |
+| ACM gain | 3-position IEM / N / HIGH switch (analog stage) |
+| Headphone amp | 16–600 Ω supported, 1 Ω output impedance |
+| Analog out | Headphone 6.35 mm (ACM), rear line-out, 5.1 analog |
+| Analog in | ACM 6.3 mm mic, XLR mic, rear line-in |
+| XLR 48 V | Phantom power via the ACM button (not exposed in software) |
+| Optical | S/PDIF in and out, 44.1–192 kHz |
+| Rates | 44.1 / 48 / 88.2 / 96 / 192 kHz; **192 kHz maximum** |
+| DSP | SBX, Crystalizer, Dialog Plus, Smart Volume, X-Bass, Surround, EQ |
+| Mic DSP | CrystalVoice, VoiceFX, Mic SVM, Noise Reduction |
+| Loopback | What U Hear |
+
+---
+
 ## Features
 
 | Area | Feature | Status |
