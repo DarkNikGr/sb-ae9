@@ -319,7 +319,9 @@ options snd-hda-codec-ca0132 ae9_direct=1
 or toggle `AE-9 Direct Mode` in the mixer / GUI. A change takes effect at the next
 stream start. Direct Mode also switches the SBX/OutFX and InFX masters off and
 constrains the analog PCM to stereo, like Windows' Direct Mode. The DSP stays in the
-path, so bit-exactness is not proven end to end.
+path, so bit-exactness is not proven end to end. `ae9-defaults` turns it off at
+every login, so a manual enable lasts for the session; the module default is
+also `0`.
 
 For a fully native chain:
 
@@ -393,7 +395,7 @@ profiles available; the price is that the extra PCM devices must be exposed by
 `ae9-defaults` (user service, oneshot) runs at login and:
 
 - waits for the AE-9 and selects its analog profile if WirePlumber did not;
-- selects `AE-9 Output` = Headphone and turns effects off;
+- selects `AE-9 Output` = Headphone, turns effects off and leaves Direct Mode off;
 - sets PCM / `Headphone+LO` / Surround to 100 % and Master to `AE9_LEVEL` (default 65);
 - turns on the optical S/PDIF playback and capture switches;
 - makes the AE-9 analog sink PipeWire's default and pins the configured default

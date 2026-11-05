@@ -60,6 +60,9 @@ apply_routing() {
   local ctl; ctl=$(route_ctl "$CARD")
   amixer -c"$CARD" sset "$ctl" "$OUT" >/dev/null 2>&1
   amixer -c"$CARD" sset 'Enable OutFX' off >/dev/null 2>&1
+  # ALSA state restores this switch too; Direct Mode is opt-in, so keep the
+  # stable path at login.  The GUI can turn it back on for the session.
+  amixer -c"$CARD" sset 'AE-9 Direct Mode' off >/dev/null 2>&1
   for c in PCM 'Headphone+LO' Surround; do amixer -c"$CARD" sset "$c" unmute >/dev/null 2>&1; amixer -c"$CARD" sset "$c" 100% >/dev/null 2>&1; done
   amixer -c"$CARD" sset Master unmute >/dev/null 2>&1; amixer -c"$CARD" sset Master "$LEVEL" >/dev/null 2>&1
   # The optical S/PDIF switches have no simple-mixer aliases; the extra
@@ -70,7 +73,7 @@ apply_routing() {
   spdif=$(amixer -c"$CARD" controls 2>/dev/null |
     sed -n "s/^numid=\([0-9]*\).*name='IEC958 Capture Switch'.*/\1/p" | head -1)
   [ -n "$spdif" ] && amixer -c"$CARD" cset numid="$spdif" on >/dev/null 2>&1
-  echo "ae9-defaults: card $CARD -> $ctl=$OUT, OutFX off, Master $LEVEL"
+  echo "ae9-defaults: card $CARD -> $ctl=$OUT, OutFX off, Direct Mode off, Master $LEVEL"
 }
 current_out() { amixer -c"$CARD" sget "$(route_ctl "$CARD")" 2>/dev/null | sed -n "s/.*Item0: '\(.*\)'/\1/p"; }
 
