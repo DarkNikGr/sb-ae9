@@ -273,6 +273,10 @@ the line-out live and drops the ACM headphone-amp bit.
 Set `ae9_out_mute=0` in `/etc/modprobe.d/sb-ae9.conf` if you want both outputs audible
 at the same time. The exclusivity is a driver choice, not a hardware limit.
 
+The GUI's **Output** page shows the channel layout as **2.0** and disables it while
+**Headphone** is selected. The speaker layout (for example 5.1) is kept in the card and
+becomes editable again as soon as **Speakers** is selected.
+
 The `ae9-profile-sync` user service bridges the two layers the desktop exposes:
 
 - `Surround Channel Config` (`2.0`, `2.1`, `4.0`, `4.1`, `5.1`) ↔ the PipeWire card

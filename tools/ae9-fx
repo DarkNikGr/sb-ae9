@@ -1011,8 +1011,10 @@ class Win(Adw.ApplicationWindow):
         if self.loading:
             return
         item = row.get_selected_item()
-        if item is not None:
-            self.write(name, item.get_string())
+        if item is None:
+            return
+        if self.write(name, item.get_string()) and name == "AE-9 Output":
+            self.apply_layout_lock(item.get_string())
 
     def on_format(self, row, _param):
         if self.loading:
@@ -1181,6 +1183,42 @@ class Win(Adw.ApplicationWindow):
         self.sync_combos()
         return True
 
+    def apply_layout_lock(self, out=None):
+        """Channel layout is 2.0 and read-only on headphones.
+
+        In Speakers mode it shows the layout stored in the card.  The
+        speaker layout itself is left untouched, so switching back shows
+        it again.
+        """
+        slot = self.widgets.get("Surround Channel Config")
+        combo = slot.get("combo") if slot else None
+        if combo is None:
+            return
+        if out is None:
+            try:
+                out = read("AE-9 Output")["item"]
+            except RuntimeError:
+                return
+        head = out == "Headphone"
+        combo.set_sensitive(not head)
+        if head:
+            target = "2.0"
+        else:
+            try:
+                target = read("Surround Channel Config")["item"]
+            except RuntimeError:
+                return
+        model = combo.get_model()
+        items = [model.get_string(i) for i in range(model.get_n_items())]
+        if target not in items:
+            return
+        idx = items.index(target)
+        if combo.get_selected() != idx:
+            was = self.loading
+            self.loading = True
+            combo.set_selected(idx)
+            self.loading = was
+
     def sync_combos(self):
         """Follow the ACM/knob and the sync service.
 
@@ -1188,22 +1226,22 @@ class Win(Adw.ApplicationWindow):
         output; without this poll the combo would keep showing the value
         from the last manual reload.
         """
-        for name in ("AE-9 Output", "Surround Channel Config"):
-            slot = self.widgets.get(name)
-            combo = slot.get("combo") if slot else None
-            if combo is None:
-                continue
+        slot = self.widgets.get("AE-9 Output")
+        combo = slot.get("combo") if slot else None
+        out = None
+        if combo is not None:
             try:
-                st = read(name)
+                st = read("AE-9 Output")
             except RuntimeError:
-                continue
-            if st["item"] not in st["items"]:
-                continue
-            idx = st["items"].index(st["item"])
-            if combo.get_selected() != idx:
-                self.loading = True
-                combo.set_selected(idx)
-                self.loading = False
+                st = None
+            if st and st["item"] in st["items"]:
+                out = st["item"]
+                idx = st["items"].index(out)
+                if combo.get_selected() != idx:
+                    self.loading = True
+                    combo.set_selected(idx)
+                    self.loading = False
+        self.apply_layout_lock(out)
 
     def _on_close(self, *_args):
         if getattr(self, "_tick", None) is not None:
@@ -1245,6 +1283,8 @@ class Win(Adw.ApplicationWindow):
             fr = forced_rate()
             self.force_combo.set_selected(
                 self.force_rates.index(fr) if fr in self.force_rates else 0)
+
+            self.apply_layout_lock()
 
             fmt = saved_format()
             values = [v for _label, v in FORMATS]
