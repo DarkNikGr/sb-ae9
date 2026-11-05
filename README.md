@@ -39,11 +39,38 @@ the machine. Everything runs under plain ALSA, PipeWire and WirePlumber.
 | Card | Direct Mode (follow the stream rate) | Working 44.1–192 kHz, opt-in |
 
 **Not supported:** 48 V phantom power, AC3/DTS passthrough, and importing a Windows
-SBX profile. The IEM/Normal/High headphone gain is the 3-position switch on the ACM:
-it is an analog stage, it does not appear in any register, and the driver leaves the
-ES9038Q2M trims at 0 dB (as Windows does) so it is never attenuated twice. 176.4 kHz
-has no working descriptor; 384 kHz was tested and rejected (the HDA link does not
+SBX profile. The IEM/Normal/High headphone gain is handled by the 3-position switch on
+the ACM; the driver keeps the ES9038Q2M trims at 0 dB (as Windows does) and exposes no
+duplicate software control. 384 kHz was tested and rejected (the HDA link does not
 carry the 8× rate). **192 kHz is the maximum.**
+
+---
+
+## Roadmap
+
+Open work, in rough order. Checked items are already in this tree and tested on the
+card; they are kept here so the scope is visible.
+
+- [x] **Analog IEM / Normal / High gain** — the 3-position switch on the ACM owns the
+      gain. The driver leaves the ES9038Q2M trims at 0 dB and exposes no duplicate
+      software control; nothing is left to implement in software.
+- [x] **Headphone / line-out routing** — shared `Headphone+LO`, auto-detect, exclusive
+      output switching and the ES9038 front mute.
+- [x] **Direct Mode** — stream-rate following at 44.1–192 kHz, effects off, stereo.
+- [x] **Optical S/PDIF** — playback and capture at 44.1–192 kHz, loopback-tested.
+- [x] **Desktop entry** — `install.sh` installs `ae9-fx` and its application-grid entry.
+- [ ] **Upstream** — send the 24-patch series and address review.
+- [ ] **Packaging** — RPM/COPR for Fedora.
+- [ ] **Packaging** — DEB and AUR.
+- [ ] **Release** — tag `v0.1.0` and publish a tarball.
+- [ ] **`ae9ctl`** — profiles (headphones / speakers / recording) and save/restore.
+- [ ] **Docs** — man page for `ae9-fx` and `ae9ctl`.
+- [ ] **CI** — kernel-version matrix and a saved hardware selftest report.
+- [ ] **Driver** — AC3/DTS passthrough over optical S/PDIF (blocked: there is no
+      IEC958 subframe route on device 10).
+- [ ] **Driver** — import SBX profiles from the Windows package.
+- [ ] **Driver** — investigate the silent rear line-out on some card revisions.
+- [ ] **Driver** — document the remaining ACM/DSP registers.
 
 ---
 
