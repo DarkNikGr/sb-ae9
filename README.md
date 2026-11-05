@@ -279,6 +279,10 @@ The `ae9-profile-sync` user service bridges the two layers the desktop exposes:
 - GNOME's **Headphones** / **Line Out** routes ↔ this `AE-9 Output` relay, so changing
   either one updates the other. The same service makes the analog 5.1 sink the default
   instead of the optical S/PDIF.
+- The volume is mirrored across the switch: WirePlumber stores a separate level for
+  each port, so without this the card would jump between the last headphone level and
+  the last line-out level. The service re-applies the previous level after every route
+  change, whichever side started it.
 
 - The control is deliberately **not** called “Output Select”: desktop ALSA profiles
   map that name onto sink ports and rewrite it on every route restore.
@@ -515,6 +519,11 @@ step, polling every 2 s:
   sink used as default;
 - the GNOME **Headphones** / **Line Out** route ↔ the `AE-9 Output` relay (the same
   control the ACM knob and `ae9-fx` write).
+
+It also keeps the volume constant when the output switches. WirePlumber remembers a
+separate volume for every route; the service saves the level before a route change and
+re-applies it afterwards, so the ACM knob, `ae9-fx` and the GNOME panel all keep the
+same loudness.
 
 It also names every analog sink (`Sound Blaster AE-9 Output`, `… 2.1`, `… 4.0`,
 `… 4.1`, `… 5.0`, `… 5.1`) and gives it priority over the optical S/PDIF.

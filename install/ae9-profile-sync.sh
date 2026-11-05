@@ -9,6 +9,10 @@
 # The profile is treated as the master at startup: the desktop restores the
 # last selected profile, and the mixer control follows it.  After that, a
 # change on either side is propagated.
+#
+# It also mirrors the output volume across the Headphones/Line Out routes:
+# WirePlumber stores a separate level per route, and switching ports would
+# otherwise change the loudness.
 set -u
 
 CARD=${AE9_CARD:-Creative}
@@ -230,6 +234,24 @@ set_route() { # index
 	log "route -> $1"
 }
 
+# WirePlumber remembers one volume per route, so switching between the
+# Headphones and Line Out ports changes the level.  The user expects one
+# volume for the card, so mirror it across the switch.
+get_volume() { # sink
+	wpctl get-volume "$1" 2>/dev/null |
+		sed -n 's/^Volume: \([0-9.]*\).*/\1/p'
+}
+
+is_muted() { # sink
+	wpctl get-volume "$1" 2>/dev/null | grep -q MUTED && echo 1 || echo 0
+}
+
+set_volume() { # sink value muted
+	[ -n "$1" ] && [ -n "$2" ] || return 0
+	wpctl set-volume "$1" "$2" 2>/dev/null || true
+	wpctl set-mute "$1" "${3:-0}" 2>/dev/null || true
+}
+
 route_for_out() {
 	case "$1" in
 		Headphone) route_index analog-output-headphones ;;
@@ -252,6 +274,8 @@ last_cfg=""
 last_prof=""
 last_out=""
 last_route=""
+last_vol=""
+last_mute=0
 first=1
 first_route=1
 guard=0
@@ -299,18 +323,38 @@ while :; do
 		*lineout*|*speaker*) want="Speakers" ;;
 	esac
 
+	sink=$(sink_node)
+	vol=""
+	mute=0
+	if [ -n "$sink" ]; then
+		vol=$(get_volume "$sink")
+		mute=$(is_muted "$sink")
+	fi
+
 	if [ "$first_route" = 1 ]; then
 		idx=$(route_for_out "$out")
 		[ -n "$idx" ] && set_route "$idx"
+		# Keep the level we had before the route was restored.
+		set_volume "$sink" "$vol" "$mute"
 		first_route=0
 		rguard=$((SECONDS + 3))
 	elif [ "$SECONDS" -ge "$rguard" ] && [ "$rname" != "$last_route" ] &&
 	     [ -n "$want" ] && [ "$want" != "$out" ]; then
+		# A route change made from the desktop restored that route's own
+		# saved volume; put the previous one back.
 		set_out "$want" && out="$want"
+		set_volume "$sink" "$last_vol" "$last_mute"
+		vol="$last_vol"
+		mute="$last_mute"
 		rguard=$((SECONDS + 3))
 	elif [ "$SECONDS" -ge "$rguard" ] && [ -n "$out" ] && [ "$out" != "$last_out" ]; then
+		# The ACM knob or the GUI changed the output; changing the route
+		# below would restore the other route's volume, so re-apply it.
 		idx=$(route_for_out "$out")
-		[ -n "$idx" ] && set_route "$idx"
+		if [ -n "$idx" ]; then
+			set_route "$idx"
+			set_volume "$sink" "$vol" "$mute"
+		fi
 		rguard=$((SECONDS + 3))
 	fi
 
@@ -318,4 +362,6 @@ while :; do
 	last_prof="$pkey"
 	last_out="$out"
 	last_route="$rname"
+	[ -n "$vol" ] && last_vol="$vol"
+	[ -n "$sink" ] && last_mute="$mute"
 done
