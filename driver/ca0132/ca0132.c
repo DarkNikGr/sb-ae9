@@ -12019,6 +12019,16 @@ static int dbpro_init(struct hda_codec *codec)
 	for (i = 0; i < spec->num_inputs; i++)
 		init_input(codec, spec->input_pins[i], spec->adcs[i]);
 
+	/*
+	 * The AE-9 secondary codec feeds the optical S/PDIF port.  Its
+	 * tracker processes/resamples the received stream, which is fine
+	 * for PCM but corrupts AC3/DTS bitstreams.  Bypass it so digital
+	 * 5.1 passthrough reaches the HDA capture converter unchanged;
+	 * plain PCM stays bit-exact (2026-11-06 optical loopback test).
+	 */
+	if (codec->core.subsystem_id == 0x11020072)
+		chipio_set_control_flag(codec, CONTROL_FLAG_TRACKER, 0);
+
 	return 0;
 }
 
