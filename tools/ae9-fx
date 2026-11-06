@@ -926,7 +926,9 @@ class Win(Adw.ApplicationWindow):
 
     def page_dac(self, page):
         g = Adw.PreferencesGroup(title="DAC filters")
-        self.add_combo(g, None, "AE-5: Sound Filter", "Oversampling filter")
+        name = ("AE-9: DAC Filter" if has_ctl("AE-9: DAC Filter")
+                else "AE-5: Sound Filter")
+        self.add_combo(g, None, name, "Oversampling filter")
         if has_ctl("AE-5: Headphone Gain"):
             self.add_combo(g, None, "AE-5: Headphone Gain", "Headphone gain",
                            "DAC master trim (AE-5/AE-7 only)")
@@ -1319,12 +1321,14 @@ class App(Adw.Application):
 def selftest():
     """Check the parsers without opening a window."""
     print(f"card: {CARD}")
+    filt = ("AE-9: DAC Filter" if has_ctl("AE-9: DAC Filter")
+            else "AE-5: Sound Filter")
     names = [p[0] for p in PROCESSORS] + [
         "Master", "Headphone+LO", "AE-9 Output", "HP/Speaker Auto Detect",
         "Enable OutFX",
         "Surround Channel Config", "Full-Range Front Speakers",
         "Full-Range Rear Speakers", "Bass Redirection",
-        "Bass Redirection Crossover", "AE-5: Sound Filter",
+        "Bass Redirection Crossover", filt,
         "FX: Smart Volume Setting",
         "FX: X-Bass Crossover", "FX: Equalizer Preset", "EQ Band0",
         "Input Source", "Enable InFX Capture Switch",

@@ -294,8 +294,12 @@ while :; do
 		# desktop profile follow it at login.
 		target=$(profile_for_cfg "$cfg")
 		if [ -n "$target" ] && [ "$pkey" != "$cfg" ]; then
-			set_profile "$dev" "$target" && pkey="$cfg"
-			guard=$((SECONDS + 6))
+			if set_profile "$dev" "$target"; then
+				pkey="$cfg"
+				last_cfg="$cfg"
+				last_prof="$pkey"
+				guard=$((SECONDS + 6))
+			fi
 		fi
 		first=0
 	elif [ "$SECONDS" -lt "$guard" ]; then
@@ -303,12 +307,20 @@ while :; do
 	elif [ "$cfg" != "$last_cfg" ]; then
 		target=$(profile_for_cfg "$cfg")
 		if [ -n "$target" ] && [ "$pkey" != "$cfg" ]; then
-			set_profile "$dev" "$target" && pkey="$cfg"
-			guard=$((SECONDS + 6))
+			if set_profile "$dev" "$target"; then
+				pkey="$cfg"
+				last_cfg="$cfg"
+				last_prof="$pkey"
+				guard=$((SECONDS + 6))
+			fi
 		fi
 	elif [ "$pkey" != "$last_prof" ] && [ -n "$pkey" ]; then
-		set_cfg "$pkey" && cfg="$pkey"
-		guard=$((SECONDS + 4))
+		if set_cfg "$pkey"; then
+			cfg="$pkey"
+			last_cfg="$cfg"
+			last_prof="$pkey"
+			guard=$((SECONDS + 4))
+		fi
 	fi
 
 	# The GNOME sound panel exposes the "Headphones" / "Line Out" routes of
@@ -358,8 +370,10 @@ while :; do
 		rguard=$((SECONDS + 3))
 	fi
 
-	last_cfg="$cfg"
-	last_prof="$pkey"
+	if [ "$SECONDS" -ge "$guard" ]; then
+		last_cfg="$cfg"
+		last_prof="$pkey"
+	fi
 	last_out="$out"
 	last_route="$rname"
 	[ -n "$vol" ] && last_vol="$vol"
