@@ -1,4 +1,4 @@
-From 9102a4989887f90a55f712bd2b7439c6381268d3 Mon Sep 17 00:00:00 2001
+From 37ba55f533d90490852fc42a8e0fa698051ba69b Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 06/24] ALSA: hda/ca0132: keep AE-9 capture opt-in
@@ -16,7 +16,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 31 insertions(+), 6 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 872cbd9..d6a09c1 100644
+index c714110..ea5a3a8 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -29,7 +29,17 @@
@@ -112,6 +112,3 @@ index 872cbd9..d6a09c1 100644
  		info->stream[SNDRV_PCM_STREAM_CAPTURE] =
  			ca0132_pcm_digital_capture;
  		info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in;
--- 
-2.56.0
-

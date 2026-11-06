@@ -1,6 +1,6 @@
-From a74209a2306790426d8c2ee79de184e4b73f9120 Mon Sep 17 00:00:00 2001
+From f8180c5cd72ec03ff0ef749f8ca716af95098561 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
-Date: Thu, 5 Nov 2026 22:17:06 +0200
+Date: Fri, 6 Nov 2026 20:55:56 +0200
 Subject: [PATCH 00/24] ALSA: hda/ca0132: add Sound Blaster AE-9 support
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -18,8 +18,11 @@ hardware protocol can be reviewed in order:
 
   - base quirk, PCI/pincfg, the Windows-style DSP/PLL/DAC/GPIO bring-up,
     the output-connect overlay and the ACM UART service;
-  - output routing (including the ES9038 routing table on every
-    switch), jack detection and auto-detect;
+  - output routing (including the ES9038 routing table on every switch),
+    the analog 5.1 rear pair on pin 0x11, the SABRE9006 mute with the
+    headphones and balanced DSP output trims, jack detection and
+    auto-detect; the line-out pins are NO_PRESENCE so the desktop keeps
+    every analog profile available;
   - SBX light, knob/button handling and the 500 ms ACM service;
   - capture (secondary-codec line-in/S-PDIF and the opt-in main-codec
     microphone);
@@ -31,28 +34,31 @@ The series depends on the HDA-core posted-write flush sent separately
 without it probing the card hard-locks the machine.
 
 Tested on the physical card and ACM with Fedora 44 / kernel 7.2.14:
-playback at 44.1-192 kHz, capture from the ACM microphone, rear line-in,
-What U Hear and optical S/PDIF at 44.1-192 kHz, optical loopback at all
-rates, suspend/resume, and the knob/display/buttons.  All 24 patches
-pass scripts/checkpatch.pl with no errors or warnings.
+playback at 44.1-192 kHz, analog 5.1 on jacks 13-16 (front, rear and
+center/sub), headphones silencing every line-out, capture from the ACM
+microphone, rear line-in, What U Hear and optical S/PDIF at 44.1-192
+kHz, optical loopback at all rates, suspend/resume, and the
+knob/display/buttons.  All 24 patches pass scripts/checkpatch.pl with no
+errors or warnings.
 
 The firmware output-connect overlay is extracted from Creative's
 Windows package at install time and is not part of this series.
 
 DarkNikGr
 
+
 DarkNikGr (24):
   ALSA: hda/ca0132: add Sound Blaster AE-9 support
   ALSA: hda/ca0132: AE-9: keep the desktop's card profiles off the AE-9
     routing
-  ALSA: hda/ca0132: no jack detection on the AE-9 headphone pin
+  ALSA: hda/ca0132: no jack detection on the AE-9 output pins
   ALSA: hda/ca0132: AE-9 ACM: SBX light follows Enable OutFX, SBX button
     toggles it
   ALSA: hda/ca0132: AE-9 ACM: knob press = mute (display MUTE), medium
     press = output toggle
   ALSA: hda/ca0132: keep AE-9 capture opt-in
   ALSA: hda/ca0132: use system_dfl_wq for the ACM service
-  ALSA: hda/ca0132: AE-9 output switching mutes the line-out buffer
+  ALSA: hda/ca0132: AE-9 output switching handles the 5.1 line-outs
   ALSA: hda/ca0132: AE-9 ACM: keep the knob/display path fast
   ALSA: hda/ca0132: AE-9: allow capture on the secondary codec
   ALSA: hda/ca0132: AE-9 capture support (ACM mic + rear line-in)
@@ -71,9 +77,6 @@ DarkNikGr (24):
   ALSA: hda/ca0132: leave the AE-9 headphone gain to the ACM
   ALSA: hda/ca0132: fix the AE-5 headphone gain item names
 
- sound/hda/codecs/ca0132.c | 3047 ++++++++++++++++++++++++++++++++++---
- 1 file changed, 2799 insertions(+), 248 deletions(-)
-
--- 
-2.56.0
+ sound/hda/codecs/ca0132.c | 3096 ++++++++++++++++++++++++++++++++++---
+ 1 file changed, 2845 insertions(+), 251 deletions(-)
 

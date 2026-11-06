@@ -1,4 +1,4 @@
-From 931fbb944d073c0acca5268a88944f247b7a03c0 Mon Sep 17 00:00:00 2001
+From 0da96897e140db681c3c885d5ac1c18472aab3e5 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:59:57 +0200
 Subject: [PATCH 23/24] ALSA: hda/ca0132: leave the AE-9 headphone gain to the
@@ -24,7 +24,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 23 insertions(+), 9 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 0361384..1b2817a 100644
+index 4dad0f4..4c71f8b 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -5052,18 +5052,26 @@ static int ca0132_alt_select_out_quirk_set(struct hda_codec *codec)
@@ -62,7 +62,7 @@ index 0361384..1b2817a 100644
  		}
  	}
  
-@@ -7790,11 +7798,12 @@ static int ca0132_build_controls(struct hda_codec *codec)
+@@ -7804,11 +7812,12 @@ static int ca0132_build_controls(struct hda_codec *codec)
  		if (err < 0)
  			return err;
  		fallthrough;
@@ -76,7 +76,7 @@ index 0361384..1b2817a 100644
  		err = ae5_add_sound_filter_enum(codec);
  		if (err < 0)
  			return err;
-@@ -12311,6 +12320,11 @@ static void ca0132_alt_init(struct hda_codec *codec)
+@@ -12333,6 +12342,11 @@ static void ca0132_alt_init(struct hda_codec *codec)
  		 */
  		chipio_read(codec, 0x18b030, &tmp);
  		chipio_write(codec, 0x18b030, 0x00000027);
@@ -88,6 +88,3 @@ index 0361384..1b2817a 100644
  		break;
  	case QUIRK_AE7:
  		ca0132_gpio_init(codec);
--- 
-2.56.0
-

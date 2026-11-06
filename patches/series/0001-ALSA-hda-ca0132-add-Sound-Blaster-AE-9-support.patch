@@ -1,4 +1,4 @@
-From 5e7f071c17cdd562d5944dd513a8b34f56c2bf35 Mon Sep 17 00:00:00 2001
+From 2a23873548593e097e854c40610785338debddaf Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:16:44 +0200
 Subject: [PATCH 01/24] ALSA: hda/ca0132: add Sound Blaster AE-9 support
@@ -2272,6 +2272,3 @@ index b3e768b..b4781f3 100644
  	return 0;
  }
  
--- 
-2.56.0
-

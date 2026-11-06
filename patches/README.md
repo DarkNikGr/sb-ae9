@@ -21,7 +21,9 @@ into one patch for a quick read.
 
 - base quirk, PCI table, pin configuration and the Windows-style bring-up;
 - DSP loader, ASI/PLL, the output-connect overlay and the 8051 hooks;
-- output routing, jack detection and auto-detect;
+- output routing including analog 5.1 (rear pin 0x11, SABRE mute, balanced
+  DSP trims), jack detection and auto-detect; the line-out pins are
+  `NO_PRESENCE` so every analog profile stays available;
 - ACM UART service, SBX light, knob, display and buttons;
 - shared Headphone+LO volume and the AE-9 mixer controls;
 - capture (main and secondary codec);

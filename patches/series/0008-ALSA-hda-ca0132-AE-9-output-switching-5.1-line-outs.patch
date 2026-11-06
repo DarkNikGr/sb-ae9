@@ -1,8 +1,8 @@
-From 978cd053b978f4bffa838387eabbabf1f33bcc6f Mon Sep 17 00:00:00 2001
+From 685c4e3b81606cd4342b7e4cdbcf871d040ccff9 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
-Subject: [PATCH 08/24] ALSA: hda/ca0132: AE-9 output switching mutes the
- line-out buffer
+Subject: [PATCH 08/24] ALSA: hda/ca0132: AE-9 output switching handles the 5.1
+ line-outs
 
 The ACM amp bit (reg2 bit6) only enables the headphone amplifier. On the
 AE-9 the rear line-out is fed by the same ES9038Q2M as the headphones,
@@ -13,15 +13,24 @@ reg 0x1d, the register Windows' Front_Mute (INF index 12) writes:
 mutes the headphone amp instead. The ae9_out_mute module parameter
 restores the old behaviour.
 
+For 5.1 the rear pair is DAC 0x04 on pin 0x11, the pin the AE-5/AE-7 use
+for their rear headphone jack. The shared speaker path disabled it, so the
+rear jack stayed silent. Enable it in speaker mode and disable every
+line-out pin in headphone mode, where the ACM and the ES9038 own the
+output. Mute the SABRE9006 with the headphones so the rear and center/sub
+jacks stay silent, and balance the DSP output trims at 0 dB: Windows parks
+the rear/center pair at -10.5 dB, which made 15/16 much quieter than
+13/14.
+
 README: document the new switch and ae9_out_mute.
 
 Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
 ---
- sound/hda/codecs/ca0132.c | 51 ++++++++++++++++++++++++++++++++++++---
- 1 file changed, 48 insertions(+), 3 deletions(-)
+ sound/hda/codecs/ca0132.c | 93 +++++++++++++++++++++++++++++++++------
+ 1 file changed, 80 insertions(+), 13 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 94cdddb..e7b9491 100644
+index 981766b..9bf40b8 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -31,6 +31,14 @@ static int ae9_acm_poll = 1;
@@ -39,7 +48,52 @@ index 94cdddb..e7b9491 100644
  /* The AE-9 bring-up covers the playback path only. Starting a capture stream on
   * either of the card's codecs hard-locks the machine (2026-09-09: an application
   * fell back to the card's analog capture when a USB microphone was unplugged;
-@@ -9991,6 +9999,40 @@ static void ae9_acm_service_knob_press(struct hda_codec *codec)
+@@ -5071,8 +5079,13 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
+ 		snd_hda_codec_write(codec, spec->out_pins[0], 0,
+ 			AC_VERB_SET_EAPD_BTLENABLE, 0x01);
+ 
+-		/* Disable headphone node. */
+-		ca0132_set_out_node_pincfg(codec, spec->out_pins[1], 0, 0);
++		/*
++		 * The AE-9 has no rear headphone jack: pin 0x11 is its rear
++		 * line-out (DAC 0x04), so it must stay enabled in speaker mode.
++		 * On the other cards this pin is the rear headphone output.
++		 */
++		ca0132_set_out_node_pincfg(codec, spec->out_pins[1],
++					   ca0132_quirk(spec) == QUIRK_AE9, 0);
+ 		/* Set front L-R to output. */
+ 		ca0132_set_out_node_pincfg(codec, spec->out_pins[0], 1, 0);
+ 		/* Set Center/LFE to output. */
+@@ -5105,13 +5118,22 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
+ 		ca0132_set_out_node_pincfg(codec, spec->out_pins[2], 0, 0);
+ 		ca0132_set_out_node_pincfg(codec, spec->out_pins[3], 0, 0);
+ 
+-		/* enable headphone, either front or rear */
+-		if (snd_hda_jack_detect(codec, spec->unsol_tag_front_hp))
+-			headphone_nid = spec->out_pins[2];
+-		else if (snd_hda_jack_detect(codec, spec->unsol_tag_hp))
+-			headphone_nid = spec->out_pins[1];
++		if (ca0132_quirk(spec) == QUIRK_AE9) {
++			/*
++			 * The AE-9 headphones are driven by the ACM/ES9038, not
++			 * by a codec pin; pin 0x11 is the rear line-out. Keep
++			 * every line-out pin off so the jacks stay muted.
++			 */
++			ca0132_set_out_node_pincfg(codec, spec->out_pins[1], 0, 0);
++		} else {
++			/* enable headphone, either front or rear */
++			if (snd_hda_jack_detect(codec, spec->unsol_tag_front_hp))
++				headphone_nid = spec->out_pins[2];
++			else if (snd_hda_jack_detect(codec, spec->unsol_tag_hp))
++				headphone_nid = spec->out_pins[1];
+ 
+-		ca0132_set_out_node_pincfg(codec, headphone_nid, 1, 1);
++			ca0132_set_out_node_pincfg(codec, headphone_nid, 1, 1);
++		}
+ 
+ 		if (outfx_set)
+ 			err = dspio_set_uint_param(codec, 0x80, 0x04, FLOAT_ONE);
+@@ -9991,6 +10013,42 @@ static void ae9_acm_service_knob_press(struct hda_codec *codec)
  	}
  }
  
@@ -73,6 +127,8 @@ index 94cdddb..e7b9491 100644
 +	 */
 +	ae9_dac_write(codec, 0x07, 0x80);		/* ES9038 unmuted */
 +	ae9_dac_write(codec, 0x1d, hp ? 0x80 : 0x40);	/* front mute */
++	/* The SABRE9006 drives the rear/center line-outs; mute it for headphones. */
++	ae9_dev49_write(codec, 0x0a, hp ? 0x07 : 0x06);
 +	codec_info(codec, "AE-9 output path: %s (ES9038 unmuted, line-out %s)\n",
 +		   hp ? "headphone" : "line-out", hp ? "muted" : "unmuted");
 +}
@@ -80,7 +136,7 @@ index 94cdddb..e7b9491 100644
  /* Windows writes exactly one ACM register bit for the output: reg2 bit6 (the
   * headphone amp, item 3, F0 03 03 02 <00|40> 40). reg2 bit2 / reg7 bit0
   * (items 5/6) are the module's OWN output selector and are only ever read by
-@@ -10001,9 +10043,12 @@ static void ae9_acm_apply_regs(struct ca0132_spec *spec)
+@@ -10001,9 +10059,12 @@ static void ae9_acm_apply_regs(struct ca0132_spec *spec)
  	ae9_acm_setreg(spec, 0x02, spec->cur_out_type == HEADPHONE_OUT ? 0x40 : 0x00, 0x40);
  }
  
@@ -94,7 +150,7 @@ index 94cdddb..e7b9491 100644
  	ae9_acm_display(spec, spec->cur_out_type == HEADPHONE_OUT ? "-HP-" : "-SP-");
  	spec->ae9_acm_show_mode_ticks = 10;
  }
-@@ -10121,7 +10166,7 @@ static bool ae9_acm_init(struct hda_codec *codec)
+@@ -10121,7 +10182,7 @@ static bool ae9_acm_init(struct hda_codec *codec)
  	ae9_acm_cmd(spec, led, sizeof(led));		/* encoder LED on */
  	ae9_acm_display(spec, "AE-9");
  	ae9_acm_cmd(spec, blink, sizeof(blink));	/* blink interval 0 */
@@ -103,7 +159,7 @@ index 94cdddb..e7b9491 100644
  	codec_info(codec, "AE-9 ACM: present, firmware 0x%08x, output %s\n",
  		   spec->ae9_acm_fw,
  		   spec->cur_out_type == HEADPHONE_OUT ? "headphone" : "speakers");
-@@ -10221,7 +10266,7 @@ static void ae9_acm_work_fn(struct work_struct *work)
+@@ -10221,7 +10282,7 @@ static void ae9_acm_work_fn(struct work_struct *work)
  	}
  	if (spec->ae9_acm_pending_mode) {
  		spec->ae9_acm_pending_mode = false;
@@ -112,6 +168,20 @@ index 94cdddb..e7b9491 100644
  	} else if ((spec->ae9_acm_tick % 10) == 0) {
  		ae9_acm_check_regs(codec);
  	}
--- 
-2.56.0
-
+@@ -10277,8 +10338,14 @@ static void ae9_dump_work_fn(struct work_struct *work)
+  */
+ static void ae9_dsp_output_connect(struct hda_codec *codec)
+ {
+-	dspio_set_uint_param(codec, 0x32, 0x03, 0xc1280000);	/* -10.5 */
+-	dspio_set_uint_param(codec, 0x32, 0x04, 0xc1280000);	/* -10.5 */
++	/*
++	 * Windows writes -10.5 dB to req 3/4, which lands on the rear/center
++	 * pair; the front pair (req 2) stays at 0 dB.  That makes the line-out
++	 * jacks 10.5 dB quieter than the front jacks.  Use 0 dB for all three
++	 * so a 5.1 speaker set is balanced; the master volume trims the lot.
++	 */
++	dspio_set_uint_param(codec, 0x32, 0x03, FLOAT_ZERO);
++	dspio_set_uint_param(codec, 0x32, 0x04, FLOAT_ZERO);
+ 	dspio_set_uint_param(codec, 0x32, 0x02, FLOAT_ZERO);
+ }
+ 

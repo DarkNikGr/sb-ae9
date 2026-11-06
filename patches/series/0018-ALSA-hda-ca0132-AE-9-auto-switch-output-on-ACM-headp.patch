@@ -1,4 +1,4 @@
-From be1fc4d1ef9f75daf47aa4d11eea061c80d1f091 Mon Sep 17 00:00:00 2001
+From 16e4f94b005405b98d3ec47f7e52e045c339b22b Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:29 +0200
 Subject: [PATCH 18/24] ALSA: hda/ca0132: AE-9: auto-switch output on ACM
@@ -17,7 +17,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 130 insertions(+), 16 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 294277f..374366d 100644
+index 146b81f..8f2d925 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -1219,6 +1219,9 @@ struct ca0132_spec {
@@ -39,7 +39,7 @@ index 294277f..374366d 100644
  {
  	struct ca0132_spec *spec = codec->spec;
  	unsigned int tmp, outfx_set;
-@@ -5221,6 +5224,40 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
+@@ -5235,6 +5238,40 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
  	return 0;
  }
  
@@ -80,7 +80,7 @@ index 294277f..374366d 100644
  static void ca0132_unsol_hp_delayed(struct work_struct *work)
  {
  	struct ca0132_spec *spec = container_of(
-@@ -6358,7 +6395,13 @@ static int ca0132_alt_output_select_get(struct snd_kcontrol *kcontrol,
+@@ -6372,7 +6409,13 @@ static int ca0132_alt_output_select_get(struct snd_kcontrol *kcontrol,
  	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
  	struct ca0132_spec *spec = codec->spec;
  
@@ -95,7 +95,7 @@ index 294277f..374366d 100644
  	return 0;
  }
  
-@@ -6376,6 +6419,22 @@ static int ca0132_alt_output_select_put(struct snd_kcontrol *kcontrol,
+@@ -6390,6 +6433,22 @@ static int ca0132_alt_output_select_put(struct snd_kcontrol *kcontrol,
  	codec_dbg(codec, "ca0132_alt_output_select: sel=%d, preset=%s\n",
  		    sel, out_type_str[sel]);
  
@@ -118,7 +118,7 @@ index 294277f..374366d 100644
  	spec->out_enum_val = sel;
  
  	ca0132_disable_hp_auto_detect(codec);
-@@ -10108,7 +10167,7 @@ static void ae9_acm_setreg(struct ca0132_spec *spec, u8 reg, u8 val, u8 mask)
+@@ -10122,7 +10181,7 @@ static void ae9_acm_setreg(struct ca0132_spec *spec, u8 reg, u8 val, u8 mask)
  	ae9_acm_cmd(spec, f, sizeof(f));
  }
  
@@ -127,7 +127,7 @@ index 294277f..374366d 100644
  static int ae9_acm_getreg(struct ca0132_spec *spec, u8 reg)
  {
  	u8 q[5] = { 0xf0, 0x83, 0x01, reg, 0xf7 };
-@@ -10117,8 +10176,13 @@ static int ae9_acm_getreg(struct ca0132_spec *spec, u8 reg)
+@@ -10131,8 +10190,13 @@ static int ae9_acm_getreg(struct ca0132_spec *spec, u8 reg)
  
  	ae9_acm_tx(spec, q, sizeof(q));
  	n = ae9_acm_rx(spec, rx, 6, 100);
@@ -143,7 +143,7 @@ index 294277f..374366d 100644
  	return rx[4];
  }
  
-@@ -10378,23 +10442,70 @@ static void ae9_acm_apply_mode(struct hda_codec *codec)
+@@ -10394,23 +10458,70 @@ static void ae9_acm_apply_mode(struct hda_codec *codec)
  {
  	struct ca0132_spec *spec = codec->spec;
  
@@ -221,7 +221,7 @@ index 294277f..374366d 100644
  	int r2 = ae9_acm_getreg(spec, 0x02);
  	int r7 = ae9_acm_getreg(spec, 0x07);
  	int sel;
-@@ -10411,11 +10522,15 @@ static void ae9_acm_check_regs(struct hda_codec *codec)
+@@ -10427,11 +10538,15 @@ static void ae9_acm_check_regs(struct hda_codec *codec)
  		spec->ae9_acm_regs_logged = true;
  		spec->ae9_acm_sel = sel;
  	}
@@ -237,7 +237,7 @@ index 294277f..374366d 100644
  }
  
  static bool ae9_acm_init(struct hda_codec *codec)
-@@ -10606,12 +10721,10 @@ static void ae9_acm_work_fn(struct work_struct *work)
+@@ -10622,12 +10737,10 @@ static void ae9_acm_work_fn(struct work_struct *work)
  			spec->ae9_acm_dead_ticks = 0;
  		}
  	}
@@ -252,7 +252,7 @@ index 294277f..374366d 100644
  	ae9_acm_knob(codec);
  	if (!turbo) {
  		ae9_acm_service_buttons(codec);
-@@ -12464,6 +12577,7 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -12507,6 +12620,7 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  		return -ENOMEM;
  	codec->spec = spec;
  	spec->codec = codec;
@@ -260,6 +260,3 @@ index 294277f..374366d 100644
  
  	/* These must be set before any path is taken */
  	codec->pcm_format_first = 1;
--- 
-2.56.0
-

@@ -1,4 +1,4 @@
-From 7917df592ffd9115da01f969218637a8b5dd982a Mon Sep 17 00:00:00 2001
+From 79cfff432d9ebb1c0db1ecd6dce420989f4c47ba Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 07/24] ALSA: hda/ca0132: use system_dfl_wq for the ACM service
@@ -15,7 +15,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 7 insertions(+), 5 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index d6a09c1..94cdddb 100644
+index ea5a3a8..981766b 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -37,6 +37,9 @@ MODULE_PARM_DESC(ae9_acm_poll, "AE-9 ACM: 1 = live knob/display/button service (
@@ -66,6 +66,3 @@ index d6a09c1..94cdddb 100644
  						      msecs_to_jiffies(500));
  			return 0;
  		}
--- 
-2.56.0
-

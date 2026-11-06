@@ -1,0 +1,72 @@
+From caee3ec3bdc8d8d22c69401abcebdf90770c9831 Mon Sep 17 00:00:00 2001
+From: DarkNikGr <mitakidisnikos@gmail.com>
+Date: Thu, 5 Nov 2026 02:17:07 +0200
+Subject: [PATCH 03/24] ALSA: hda/ca0132: no jack detection on the AE-9 output
+ pins
+
+The AE-9's headphone output is the ACM, permanently attached. With presence
+detect on pin 0x0f the sense reads unplugged, the desktop's card profiles
+mark the headphone route and the analog profile unavailable and refuse the
+analog sink as a default. Marking the pin NO_PRESENCE exposes a phantom
+jack that always reads plugged, so the analog profile is chosen by
+priority.
+
+The line-output pins are permanently wired as well. Mark 0x0b/0x0f/0x10
+NO_PRESENCE too, so ACP keeps the speaker/surround routes and every analog
+profile (stereo, 2.1, 4.0, 4.1, 5.0, 5.1) available instead of falling back
+to stereo or S/PDIF when playback stops.
+
+Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
+---
+ sound/hda/codecs/ca0132.c | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)
+
+diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
+index cfdcb91..9c3d9d3 100644
+--- a/sound/hda/codecs/ca0132.c
++++ b/sound/hda/codecs/ca0132.c
+@@ -11745,6 +11745,44 @@ static void ca0132_config(struct hda_codec *codec)
+ 		break;
+ 	}
+ 
++	/* AE-9: the headphone output is the ACM, permanently attached, so the
++	 * headphone pin must not do jack detection. With presence detect the
++	 * pin sense reads "unplugged", the desktop's card profiles mark the
++	 * headphone route unavailable, the analog profile with it, and refuse the
++	 * sink as a default (2026-09-08). NO_PRESENCE makes ALSA expose a phantom
++	 * jack that always reads plugged; the analog profile is then selected by
++	 * priority and needs no pinning.
++	 */
++	if (ca0132_quirk(spec) == QUIRK_AE9 && spec->unsol_tag_hp) {
++		unsigned int cfg = snd_hda_codec_get_pincfg(codec, spec->unsol_tag_hp);
++
++		snd_hda_codec_set_pincfg(codec, spec->unsol_tag_hp,
++					 cfg |
++					 (AC_DEFCFG_MISC_NO_PRESENCE <<
++					  AC_DEFCFG_MISC_SHIFT));
++	}
++
++	/* The AE-9 line-out jacks are permanently wired to the card as well.
++	 * Without NO_PRESENCE the desktop's profile set marks the speaker /
++	 * surround routes unavailable (the codec pins have no physical jack
++	 * sense), so the 5.1 profile disappears and WirePlumber falls back to
++	 * stereo or S/PDIF. Phantom "always plugged" jacks keep every analog
++	 * profile available.
++	 */
++	if (ca0132_quirk(spec) == QUIRK_AE9) {
++		static const hda_nid_t line_pins[] = { 0x0b, 0x0f, 0x10 };
++		unsigned int i;
++
++		for (i = 0; i < ARRAY_SIZE(line_pins); i++) {
++			unsigned int cfg =
++				snd_hda_codec_get_pincfg(codec, line_pins[i]);
++
++			snd_hda_codec_set_pincfg(codec, line_pins[i],
++				cfg | (AC_DEFCFG_MISC_NO_PRESENCE <<
++				       AC_DEFCFG_MISC_SHIFT));
++		}
++	}
++
+ 	/* Default HP/Speaker auto-detect from headphone pin verb: enable if the
+ 	 * pin config indicates presence detect (not AC_DEFCFG_MISC_NO_PRESENCE).
+ 	 */

@@ -1,4 +1,4 @@
-From a74209a2306790426d8c2ee79de184e4b73f9120 Mon Sep 17 00:00:00 2001
+From f8180c5cd72ec03ff0ef749f8ca716af95098561 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 03:00:07 +0200
 Subject: [PATCH 24/24] ALSA: hda/ca0132: fix the AE-5 headphone gain item
@@ -15,10 +15,10 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 1b2817a..063a3a1 100644
+index 4c71f8b..cda2f34 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
-@@ -6243,7 +6243,7 @@ static int ca0132_alt_mic_boost_put(struct snd_kcontrol *kcontrol,
+@@ -6257,7 +6257,7 @@ static int ca0132_alt_mic_boost_put(struct snd_kcontrol *kcontrol,
  static int ae5_headphone_gain_info(struct snd_kcontrol *kcontrol,
  				 struct snd_ctl_elem_info *uinfo)
  {
@@ -27,6 +27,3 @@ index 1b2817a..063a3a1 100644
  	char namestr[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
  
  	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
--- 
-2.56.0
-

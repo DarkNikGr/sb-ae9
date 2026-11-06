@@ -1,6 +1,6 @@
-From a74209a2306790426d8c2ee79de184e4b73f9120 Mon Sep 17 00:00:00 2001
+From db8f6b4a6b9bef4570a9853017512dd4d6868af3 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
-Date: Thu, 5 Nov 2026 22:17:06 +0200
+Date: Fri, 6 Nov 2026 20:56:26 +0200
 Subject: [PATCH] ALSA: hda/ca0132: add Sound Blaster AE-9 support
 
 Add support for the Creative Sound Blaster AE-9 (PCI 1102:0010,
@@ -20,6 +20,12 @@ Mode and the HP/Speaker auto-detect gate), and brings up capture on the
 secondary codec (line-in, S/PDIF) and, with ae9_capture=1, the main
 codec microphone.
 
+Analog 5.1 is supported on jacks 13-16: front, rear (codec pin 0x11)
+and center/sub, with every line-out muted while the headphones are
+selected and the DSP output trims balanced at 0 dB.  The line-out pins
+are marked NO_PRESENCE so the desktop keeps every analog profile
+available.
+
 The card needs the HDA-core posted-write flush from the preceding
 patch; without it probing hard-locks the machine.
 
@@ -29,11 +35,11 @@ by s3boun3t (https://github.com/s3boun3t/ae9_build).
 
 Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
 ---
- sound/hda/codecs/ca0132.c | 3047 +++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 2799 insertions(+), 248 deletions(-)
+ sound/hda/codecs/ca0132.c | 3096 ++++++++++++++++++++++++++++++++++---
+ 1 file changed, 2845 insertions(+), 251 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index b3e768b..063a3a1 100644
+index b3e768b..cda2f34 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -19,6 +19,62 @@
@@ -813,7 +819,52 @@ index b3e768b..063a3a1 100644
  
  	outfx_set = spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID];
  
-@@ -4901,6 +5261,40 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
+@@ -4804,8 +5164,13 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
+ 		snd_hda_codec_write(codec, spec->out_pins[0], 0,
+ 			AC_VERB_SET_EAPD_BTLENABLE, 0x01);
+ 
+-		/* Disable headphone node. */
+-		ca0132_set_out_node_pincfg(codec, spec->out_pins[1], 0, 0);
++		/*
++		 * The AE-9 has no rear headphone jack: pin 0x11 is its rear
++		 * line-out (DAC 0x04), so it must stay enabled in speaker mode.
++		 * On the other cards this pin is the rear headphone output.
++		 */
++		ca0132_set_out_node_pincfg(codec, spec->out_pins[1],
++					   ca0132_quirk(spec) == QUIRK_AE9, 0);
+ 		/* Set front L-R to output. */
+ 		ca0132_set_out_node_pincfg(codec, spec->out_pins[0], 1, 0);
+ 		/* Set Center/LFE to output. */
+@@ -4838,13 +5203,22 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
+ 		ca0132_set_out_node_pincfg(codec, spec->out_pins[2], 0, 0);
+ 		ca0132_set_out_node_pincfg(codec, spec->out_pins[3], 0, 0);
+ 
+-		/* enable headphone, either front or rear */
+-		if (snd_hda_jack_detect(codec, spec->unsol_tag_front_hp))
+-			headphone_nid = spec->out_pins[2];
+-		else if (snd_hda_jack_detect(codec, spec->unsol_tag_hp))
+-			headphone_nid = spec->out_pins[1];
++		if (ca0132_quirk(spec) == QUIRK_AE9) {
++			/*
++			 * The AE-9 headphones are driven by the ACM/ES9038, not
++			 * by a codec pin; pin 0x11 is the rear line-out. Keep
++			 * every line-out pin off so the jacks stay muted.
++			 */
++			ca0132_set_out_node_pincfg(codec, spec->out_pins[1], 0, 0);
++		} else {
++			/* enable headphone, either front or rear */
++			if (snd_hda_jack_detect(codec, spec->unsol_tag_front_hp))
++				headphone_nid = spec->out_pins[2];
++			else if (snd_hda_jack_detect(codec, spec->unsol_tag_hp))
++				headphone_nid = spec->out_pins[1];
+ 
+-		ca0132_set_out_node_pincfg(codec, headphone_nid, 1, 1);
++			ca0132_set_out_node_pincfg(codec, headphone_nid, 1, 1);
++		}
+ 
+ 		if (outfx_set)
+ 			err = dspio_set_uint_param(codec, 0x80, 0x04, FLOAT_ONE);
+@@ -4901,6 +5275,40 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
  	return 0;
  }
  
@@ -854,7 +905,7 @@ index b3e768b..063a3a1 100644
  static void ca0132_unsol_hp_delayed(struct work_struct *work)
  {
  	struct ca0132_spec *spec = container_of(
-@@ -5118,6 +5512,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
+@@ -5118,6 +5526,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
  			tmp = FLOAT_ONE;
  			break;
  		case QUIRK_AE5:
@@ -862,7 +913,7 @@ index b3e768b..063a3a1 100644
  			ca0113_mmio_command_set(codec, 0x30, 0x28, 0x00);
  			tmp = FLOAT_THREE;
  			break;
-@@ -5154,6 +5549,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
+@@ -5154,6 +5563,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
  			chipio_write(codec, 0x18B09C, 0x000000CC);
  			break;
  		case QUIRK_AE5:
@@ -870,7 +921,7 @@ index b3e768b..063a3a1 100644
  			chipio_write(codec, 0x18B098, 0x0000000C);
  			chipio_write(codec, 0x18B09C, 0x0000004C);
  			break;
-@@ -5173,6 +5569,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
+@@ -5173,6 +5583,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
  			r3di_gpio_mic_set(codec, R3DI_REAR_MIC);
  			break;
  		case QUIRK_AE5:
@@ -878,7 +929,7 @@ index b3e768b..063a3a1 100644
  			ca0113_mmio_command_set(codec, 0x30, 0x28, 0x00);
  			break;
  		case QUIRK_AE7:
-@@ -5201,6 +5598,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
+@@ -5201,6 +5612,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
  		switch (ca0132_quirk(spec)) {
  		case QUIRK_SBZ:
  		case QUIRK_AE5:
@@ -886,7 +937,7 @@ index b3e768b..063a3a1 100644
  			chipio_write(codec, 0x18B098, 0x00000000);
  			chipio_write(codec, 0x18B09C, 0x00000000);
  			break;
-@@ -5223,6 +5621,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
+@@ -5223,6 +5635,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
  			tmp = FLOAT_ONE;
  			break;
  		case QUIRK_AE5:
@@ -894,7 +945,7 @@ index b3e768b..063a3a1 100644
  			ca0113_mmio_command_set(codec, 0x30, 0x28, 0x3f);
  			tmp = FLOAT_THREE;
  			break;
-@@ -5247,6 +5646,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
+@@ -5247,6 +5660,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
  			chipio_write(codec, 0x18B09C, 0x000000CC);
  			break;
  		case QUIRK_AE5:
@@ -902,7 +953,7 @@ index b3e768b..063a3a1 100644
  			chipio_write(codec, 0x18B098, 0x0000000C);
  			chipio_write(codec, 0x18B09C, 0x0000004C);
  			break;
-@@ -5843,7 +6243,7 @@ static int ca0132_alt_mic_boost_put(struct snd_kcontrol *kcontrol,
+@@ -5843,7 +6257,7 @@ static int ca0132_alt_mic_boost_put(struct snd_kcontrol *kcontrol,
  static int ae5_headphone_gain_info(struct snd_kcontrol *kcontrol,
  				 struct snd_ctl_elem_info *uinfo)
  {
@@ -911,7 +962,7 @@ index b3e768b..063a3a1 100644
  	char namestr[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
  
  	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-@@ -5948,14 +6348,31 @@ static int ae5_sound_filter_put(struct snd_kcontrol *kcontrol,
+@@ -5948,14 +6362,31 @@ static int ae5_sound_filter_put(struct snd_kcontrol *kcontrol,
   * front microphone has no auto-detect, and we need a way to set the rear
   * as line-in
   */
@@ -946,7 +997,7 @@ index b3e768b..063a3a1 100644
  	strscpy(uinfo->value.enumerated.name,
  			in_src_str[uinfo->value.enumerated.item]);
  	return 0;
-@@ -5966,8 +6383,11 @@ static int ca0132_alt_input_source_get(struct snd_kcontrol *kcontrol,
+@@ -5966,8 +6397,11 @@ static int ca0132_alt_input_source_get(struct snd_kcontrol *kcontrol,
  {
  	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
  	struct ca0132_spec *spec = codec->spec;
@@ -958,7 +1009,7 @@ index b3e768b..063a3a1 100644
  	return 0;
  }
  
-@@ -5977,14 +6397,7 @@ static int ca0132_alt_input_source_put(struct snd_kcontrol *kcontrol,
+@@ -5977,14 +6411,7 @@ static int ca0132_alt_input_source_put(struct snd_kcontrol *kcontrol,
  	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
  	struct ca0132_spec *spec = codec->spec;
  	int sel = ucontrol->value.enumerated.item[0];
@@ -974,7 +1025,7 @@ index b3e768b..063a3a1 100644
  
  	if (sel >= items)
  		return 0;
-@@ -6019,7 +6432,13 @@ static int ca0132_alt_output_select_get(struct snd_kcontrol *kcontrol,
+@@ -6019,7 +6446,13 @@ static int ca0132_alt_output_select_get(struct snd_kcontrol *kcontrol,
  	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
  	struct ca0132_spec *spec = codec->spec;
  
@@ -989,7 +1040,7 @@ index b3e768b..063a3a1 100644
  	return 0;
  }
  
-@@ -6037,6 +6456,22 @@ static int ca0132_alt_output_select_put(struct snd_kcontrol *kcontrol,
+@@ -6037,6 +6470,22 @@ static int ca0132_alt_output_select_put(struct snd_kcontrol *kcontrol,
  	codec_dbg(codec, "ca0132_alt_output_select: sel=%d, preset=%s\n",
  		    sel, out_type_str[sel]);
  
@@ -1012,7 +1063,7 @@ index b3e768b..063a3a1 100644
  	spec->out_enum_val = sel;
  
  	ca0132_disable_hp_auto_detect(codec);
-@@ -6361,6 +6796,8 @@ static int ca0132_switch_put(struct snd_kcontrol *kcontrol,
+@@ -6361,6 +6810,8 @@ static int ca0132_switch_put(struct snd_kcontrol *kcontrol,
  	/* PE */
  	if (nid == PLAY_ENHANCEMENT) {
  		spec->effects_switch[nid - EFFECT_START_NID] = *valp;
@@ -1021,7 +1072,7 @@ index b3e768b..063a3a1 100644
  		return ca0132_pe_switch_set(codec);
  	}
  
-@@ -6427,6 +6864,50 @@ static int ca0132_switch_put(struct snd_kcontrol *kcontrol,
+@@ -6427,6 +6878,50 @@ static int ca0132_switch_put(struct snd_kcontrol *kcontrol,
   * ADC for input. Currently only the SBZ sets dsp capture volume level, and
   * all alternative codecs set DSP playback volume.
   */
@@ -1072,7 +1123,7 @@ index b3e768b..063a3a1 100644
  static void ca0132_alt_dsp_volume_put(struct hda_codec *codec, hda_nid_t nid)
  {
  	struct ca0132_spec *spec = codec->spec;
-@@ -6580,6 +7061,9 @@ static int ca0132_alt_volume_put(struct snd_kcontrol *kcontrol,
+@@ -6580,6 +7075,9 @@ static int ca0132_alt_volume_put(struct snd_kcontrol *kcontrol,
  		break;
  	}
  
@@ -1082,7 +1133,7 @@ index b3e768b..063a3a1 100644
  	/* store the left and right volume */
  	if (ch & 1) {
  		spec->vnode_lvol[vnid - VNODE_START_NID] = *valp;
-@@ -6731,15 +7215,117 @@ static int ca0132_alt_add_svm_enum(struct hda_codec *codec)
+@@ -6731,15 +7229,117 @@ static int ca0132_alt_add_svm_enum(struct hda_codec *codec)
  
  }
  
@@ -1200,7 +1251,7 @@ index b3e768b..063a3a1 100644
  	knew.info = ca0132_alt_output_select_get_info;
  	knew.get = ca0132_alt_output_select_get;
  	knew.put = ca0132_alt_output_select_put;
-@@ -6917,6 +7503,10 @@ static const char * const ca0132_alt_follower_pfxs[] = {
+@@ -6917,6 +7517,10 @@ static const char * const ca0132_alt_follower_pfxs[] = {
  	"Front", "Surround", "Center", "LFE", NULL,
  };
  
@@ -1211,7 +1262,7 @@ index b3e768b..063a3a1 100644
  /*
   * Also need special channel map, because the default one is incorrect.
   * I think this has to do with the pin for rear surround being 0x11,
-@@ -7007,6 +7597,17 @@ static const struct snd_kcontrol_new desktop_mixer[] = {
+@@ -7007,6 +7611,17 @@ static const struct snd_kcontrol_new desktop_mixer[] = {
  	{ } /* end */
  };
  
@@ -1229,7 +1280,7 @@ index b3e768b..063a3a1 100644
  /*
   * Same as the Sound Blaster Z, except doesn't use the alt volume for capture
   * because it doesn't set decibel levels for the DSP for capture.
-@@ -7029,6 +7630,15 @@ static const struct snd_kcontrol_new r3di_mixer[] = {
+@@ -7029,6 +7644,15 @@ static const struct snd_kcontrol_new r3di_mixer[] = {
  	{ } /* end */
  };
  
@@ -1245,7 +1296,7 @@ index b3e768b..063a3a1 100644
  static int ca0132_build_controls(struct hda_codec *codec)
  {
  	struct ca0132_spec *spec = codec->spec;
-@@ -7043,17 +7653,28 @@ static int ca0132_build_controls(struct hda_codec *codec)
+@@ -7043,17 +7667,28 @@ static int ca0132_build_controls(struct hda_codec *codec)
  	}
  	/* Setup vmaster with surround followers for desktop ca0132 devices */
  	if (ca0132_use_alt_functions(spec)) {
@@ -1276,7 +1327,7 @@ index b3e768b..063a3a1 100644
  	}
  
  	/* Add in and out effects controls.
-@@ -7137,6 +7758,11 @@ static int ca0132_build_controls(struct hda_codec *codec)
+@@ -7137,6 +7772,11 @@ static int ca0132_build_controls(struct hda_codec *codec)
  		err = ca0132_alt_add_output_enum(codec);
  		if (err < 0)
  			return err;
@@ -1288,7 +1339,7 @@ index b3e768b..063a3a1 100644
  		err = ca0132_alt_add_speaker_channel_cfg_enum(codec);
  		if (err < 0)
  			return err;
-@@ -7176,6 +7802,8 @@ static int ca0132_build_controls(struct hda_codec *codec)
+@@ -7176,6 +7816,8 @@ static int ca0132_build_controls(struct hda_codec *codec)
  		err = ae5_add_headphone_gain_enum(codec);
  		if (err < 0)
  			return err;
@@ -1297,7 +1348,7 @@ index b3e768b..063a3a1 100644
  		err = ae5_add_sound_filter_enum(codec);
  		if (err < 0)
  			return err;
-@@ -7249,6 +7877,7 @@ static const struct hda_pcm_stream ca0132_pcm_analog_playback = {
+@@ -7249,6 +7891,7 @@ static const struct hda_pcm_stream ca0132_pcm_analog_playback = {
  	.channels_min = 2,
  	.channels_max = 6,
  	.ops = {
@@ -1305,7 +1356,7 @@ index b3e768b..063a3a1 100644
  		.prepare = ca0132_playback_pcm_prepare,
  		.cleanup = ca0132_playback_pcm_cleanup,
  		.get_delay = ca0132_playback_pcm_delay,
-@@ -7284,6 +7913,19 @@ static const struct hda_pcm_stream ca0132_pcm_digital_capture = {
+@@ -7284,6 +7927,19 @@ static const struct hda_pcm_stream ca0132_pcm_digital_capture = {
  	.channels_max = 2,
  };
  
@@ -1325,10 +1376,11 @@ index b3e768b..063a3a1 100644
  static int ca0132_build_pcms(struct hda_codec *codec)
  {
  	struct ca0132_spec *spec = codec->spec;
-@@ -7301,6 +7943,24 @@ static int ca0132_build_pcms(struct hda_codec *codec)
+@@ -7301,7 +7957,25 @@ static int ca0132_build_pcms(struct hda_codec *codec)
  	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->dacs[0];
  	info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max =
  		spec->multiout.max_channels;
+-	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0132_pcm_analog_capture;
 +	/*
 +	 * The AE-9's analog converter (NID 0x02) declares only 96 kHz, but the
 +	 * DSP/I2S chain has a 192 kHz descriptor (Windows Direct Mode uses it).
@@ -1347,10 +1399,11 @@ index b3e768b..063a3a1 100644
 +		codec_info(codec, "AE-9: capture streams not created (ae9_capture=0)\n");
 +		goto digital;
 +	}
- 	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0132_pcm_analog_capture;
++	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0132_pcm_analog_capture;
  	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
  	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[0];
-@@ -7323,7 +7983,8 @@ static int ca0132_build_pcms(struct hda_codec *codec)
+ 
+@@ -7323,7 +7997,8 @@ static int ca0132_build_pcms(struct hda_codec *codec)
  	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
  	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[2];
  
@@ -1360,7 +1413,7 @@ index b3e768b..063a3a1 100644
  		return 0;
  
  	info = snd_hda_codec_pcm_new(codec, "CA0132 Digital");
-@@ -7335,7 +7996,7 @@ static int ca0132_build_pcms(struct hda_codec *codec)
+@@ -7335,7 +8010,7 @@ static int ca0132_build_pcms(struct hda_codec *codec)
  			ca0132_pcm_digital_playback;
  		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->dig_out;
  	}
@@ -1369,7 +1422,7 @@ index b3e768b..063a3a1 100644
  		info->stream[SNDRV_PCM_STREAM_CAPTURE] =
  			ca0132_pcm_digital_capture;
  		info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in;
-@@ -7349,6 +8010,10 @@ static int dbpro_build_pcms(struct hda_codec *codec)
+@@ -7349,6 +8024,10 @@ static int dbpro_build_pcms(struct hda_codec *codec)
  	struct ca0132_spec *spec = codec->spec;
  	struct hda_pcm *info;
  
@@ -1380,7 +1433,7 @@ index b3e768b..063a3a1 100644
  	info = snd_hda_codec_pcm_new(codec, "CA0132 Alt Analog");
  	if (!info)
  		return -ENOMEM;
-@@ -7356,8 +8021,8 @@ static int dbpro_build_pcms(struct hda_codec *codec)
+@@ -7356,8 +8035,8 @@ static int dbpro_build_pcms(struct hda_codec *codec)
  	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
  	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[0];
  
@@ -1391,7 +1444,7 @@ index b3e768b..063a3a1 100644
  		return 0;
  
  	info = snd_hda_codec_pcm_new(codec, "CA0132 Digital");
-@@ -7369,7 +8034,7 @@ static int dbpro_build_pcms(struct hda_codec *codec)
+@@ -7369,7 +8048,7 @@ static int dbpro_build_pcms(struct hda_codec *codec)
  			ca0132_pcm_digital_playback;
  		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->dig_out;
  	}
@@ -1400,7 +1453,7 @@ index b3e768b..063a3a1 100644
  		info->stream[SNDRV_PCM_STREAM_CAPTURE] =
  			ca0132_pcm_digital_capture;
  		info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in;
-@@ -7415,10 +8080,29 @@ static void init_input(struct hda_codec *codec, hda_nid_t pin, hda_nid_t adc)
+@@ -7415,10 +8094,29 @@ static void init_input(struct hda_codec *codec, hda_nid_t pin, hda_nid_t adc)
  
  static void refresh_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir)
  {
@@ -1430,7 +1483,7 @@ index b3e768b..063a3a1 100644
  	snd_hda_override_amp_caps(codec, nid, dir, caps);
  }
  
-@@ -7771,6 +8455,7 @@ static void ca0132_alt_init_speaker_tuning(struct hda_codec *codec)
+@@ -7771,6 +8469,7 @@ static void ca0132_alt_init_speaker_tuning(struct hda_codec *codec)
  		values = zxr_default_delay_values;
  		break;
  	case QUIRK_AE5:
@@ -1438,7 +1491,7 @@ index b3e768b..063a3a1 100644
  	case QUIRK_AE7:
  		values = ae5_default_delay_values;
  		break;
-@@ -7913,6 +8598,7 @@ static void ca0132_alt_dsp_initial_mic_setup(struct hda_codec *codec)
+@@ -7913,6 +8612,7 @@ static void ca0132_alt_dsp_initial_mic_setup(struct hda_codec *codec)
  		chipio_write(codec, 0x18b09C, 0x0000000c);
  		break;
  	case QUIRK_AE5:
@@ -1446,7 +1499,7 @@ index b3e768b..063a3a1 100644
  		chipio_write(codec, 0x18b098, 0x0000000c);
  		chipio_write(codec, 0x18b09c, 0x0000004c);
  		break;
-@@ -7928,18 +8614,18 @@ static void ae5_post_dsp_register_set(struct hda_codec *codec)
+@@ -7928,18 +8628,18 @@ static void ae5_post_dsp_register_set(struct hda_codec *codec)
  	chipio_8051_write_direct(codec, 0x93, 0x10);
  	chipio_8051_write_pll_pmu(codec, 0x44, 0xc2);
  
@@ -1477,23 +1530,11 @@ index b3e768b..063a3a1 100644
  
  	ca0113_mmio_command_set(codec, 0x30, 0x2b, 0x3f);
  	ca0113_mmio_command_set(codec, 0x30, 0x2d, 0x3f);
-@@ -8621,189 +9307,1875 @@ static int ae5_strip_ctl_get(struct snd_kcontrol *kcontrol,
- 	for (i = 0; i < AE5_STRIP_MAX_LEDS; i++) {
- 		u32 grb = spec->ae5_strip_cur_colors[i];
- 
--		ucontrol->value.bytes.data[i * 3 + 0] = (grb >> 8) & 0xff;
--		ucontrol->value.bytes.data[i * 3 + 1] = (grb >> 16) & 0xff;
--		ucontrol->value.bytes.data[i * 3 + 2] = grb & 0xff;
-+		ucontrol->value.bytes.data[i * 3 + 0] = (grb >> 8) & 0xff;
-+		ucontrol->value.bytes.data[i * 3 + 1] = (grb >> 16) & 0xff;
-+		ucontrol->value.bytes.data[i * 3 + 2] = grb & 0xff;
-+	}
-+	return 0;
-+}
-+
-+static int ae5_strip_ctl_put(struct snd_kcontrol *kcontrol,
-+			     struct snd_ctl_elem_value *ucontrol)
-+{
+@@ -8631,179 +9331,1873 @@ static int ae5_strip_ctl_get(struct snd_kcontrol *kcontrol,
+ static int ae5_strip_ctl_put(struct snd_kcontrol *kcontrol,
+ 			     struct snd_ctl_elem_value *ucontrol)
+ {
+-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 +	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 +	struct ca0132_spec *spec = codec->spec;
 +	u32 colors[AE5_STRIP_MAX_LEDS];
@@ -2885,12 +2926,9 @@ index b3e768b..063a3a1 100644
 +		codec_info(codec, "AE-9 ACM: knob mid press (%d ms) -> output toggle\n", ms);
 +	} else {
 +		codec_info(codec, "AE-9 ACM: knob long press (%d ms), ignored\n", ms);
- 	}
--	return 0;
- }
- 
--static int ae5_strip_ctl_put(struct snd_kcontrol *kcontrol,
--			     struct snd_ctl_elem_value *ucontrol)
++	}
++}
++
 +/*
 + * The ACM amp bit (reg2 bit6) only enables the headphone amplifier. On this
 + * card the rear line-out is fed by the same ES9038Q2M as the headphones, so
@@ -2903,8 +2941,7 @@ index b3e768b..063a3a1 100644
 + * Called whenever the ACM output mode is applied (init and every switch).
 + */
 +static void ae9_apply_output_path(struct hda_codec *codec)
- {
--	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
++{
  	struct ca0132_spec *spec = codec->spec;
 -	u32 colors[AE5_STRIP_MAX_LEDS];
 -	int i, num_leds, change, ret;
@@ -2946,6 +2983,8 @@ index b3e768b..063a3a1 100644
 -	return change;
 +	ae9_dac_write(codec, 0x07, 0x80);		/* ES9038 unmuted */
 +	ae9_dac_write(codec, 0x1d, hp ? 0x80 : 0x40);	/* front mute */
++	/* The SABRE9006 drives the rear/center line-outs; mute it for headphones. */
++	ae9_dev49_write(codec, 0x0a, hp ? 0x07 : 0x06);
 +	codec_info(codec, "AE-9 output path: %s (ES9038 unmuted, line-out %s)\n",
 +		   hp ? "headphone" : "line-out", hp ? "muted" : "unmuted");
  }
@@ -3409,8 +3448,14 @@ index b3e768b..063a3a1 100644
 + */
 +static void ae9_dsp_output_connect(struct hda_codec *codec)
 +{
-+	dspio_set_uint_param(codec, 0x32, 0x03, 0xc1280000);	/* -10.5 */
-+	dspio_set_uint_param(codec, 0x32, 0x04, 0xc1280000);	/* -10.5 */
++	/*
++	 * Windows writes -10.5 dB to req 3/4, which lands on the rear/center
++	 * pair; the front pair (req 2) stays at 0 dB.  That makes the line-out
++	 * jacks 10.5 dB quieter than the front jacks.  Use 0 dB for all three
++	 * so a 5.1 speaker set is balanced; the master volume trims the lot.
++	 */
++	dspio_set_uint_param(codec, 0x32, 0x03, FLOAT_ZERO);
++	dspio_set_uint_param(codec, 0x32, 0x04, FLOAT_ZERO);
 +	dspio_set_uint_param(codec, 0x32, 0x02, FLOAT_ZERO);
 +}
  
@@ -3486,7 +3531,7 @@ index b3e768b..063a3a1 100644
  static void ae7_setup_defaults(struct hda_codec *codec)
  {
  	struct ca0132_spec *spec = codec->spec;
-@@ -8964,6 +11336,7 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
+@@ -8964,6 +11358,7 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
  	case QUIRK_SBZ:
  	case QUIRK_R3D:
  	case QUIRK_AE5:
@@ -3494,7 +3539,7 @@ index b3e768b..063a3a1 100644
  		if (request_firmware(&fw_entry, DESKTOP_EFX_FILE,
  					codec->card->dev) != 0)
  			codec_dbg(codec, "Desktop firmware not found.");
-@@ -9166,6 +11539,7 @@ static void ca0132_init_chip(struct hda_codec *codec)
+@@ -9166,6 +11561,7 @@ static void ca0132_init_chip(struct hda_codec *codec)
  	mutex_init(&spec->ae5_strip_mutex);
  	spec->ae5_strip_cur_num_leds = 10;
  #endif
@@ -3502,7 +3547,7 @@ index b3e768b..063a3a1 100644
  
  	/*
  	 * The Windows driver always does this upon startup, which seems to
-@@ -9225,6 +11599,13 @@ static void ca0132_init_chip(struct hda_codec *codec)
+@@ -9225,6 +11621,13 @@ static void ca0132_init_chip(struct hda_codec *codec)
  	spec->voicefx_val = 0;
  	spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID] = 1;
  	spec->effects_switch[CRYSTAL_VOICE - EFFECT_START_NID] = 0;
@@ -3516,7 +3561,7 @@ index b3e768b..063a3a1 100644
  
  	/*
  	 * The ZxR doesn't have a front panel header, and it's line-in is on
-@@ -9257,9 +11638,9 @@ static void sbz_region2_exit(struct hda_codec *codec)
+@@ -9257,9 +11660,9 @@ static void sbz_region2_exit(struct hda_codec *codec)
  	unsigned int i;
  
  	for (i = 0; i < 4; i++)
@@ -3528,7 +3573,7 @@ index b3e768b..063a3a1 100644
  
  	ca0113_mmio_gpio_set(codec, 0, false);
  	ca0113_mmio_gpio_set(codec, 1, false);
-@@ -9541,8 +11922,8 @@ static void sbz_pre_dsp_setup(struct hda_codec *codec)
+@@ -9541,8 +11944,8 @@ static void sbz_pre_dsp_setup(struct hda_codec *codec)
  {
  	struct ca0132_spec *spec = codec->spec;
  
@@ -3539,7 +3584,7 @@ index b3e768b..063a3a1 100644
  
  	chipio_write(codec, 0x18b0a4, 0x000000c2);
  
-@@ -9658,7 +12039,7 @@ static void ca0132_mmio_init_sbz(struct hda_codec *codec)
+@@ -9658,7 +12061,7 @@ static void ca0132_mmio_init_sbz(struct hda_codec *codec)
  
  	addr = ca0113_mmio_init_address_sbz;
  	for (i = 0; i < 3; i++)
@@ -3548,7 +3593,7 @@ index b3e768b..063a3a1 100644
  
  	cur_addr = i;
  	switch (ca0132_quirk(spec)) {
-@@ -9681,7 +12062,7 @@ static void ca0132_mmio_init_sbz(struct hda_codec *codec)
+@@ -9681,7 +12084,7 @@ static void ca0132_mmio_init_sbz(struct hda_codec *codec)
  	}
  
  	for (i = 0; i < 2; i++)
@@ -3557,7 +3602,7 @@ index b3e768b..063a3a1 100644
  
  	cur_addr += i;
  
-@@ -9697,39 +12078,50 @@ static void ca0132_mmio_init_sbz(struct hda_codec *codec)
+@@ -9697,39 +12100,50 @@ static void ca0132_mmio_init_sbz(struct hda_codec *codec)
  	}
  
  	for (i = 0; i < count; i++)
@@ -3618,7 +3663,7 @@ index b3e768b..063a3a1 100644
  }
  
  static void ca0132_mmio_init(struct hda_codec *codec)
-@@ -9743,6 +12135,7 @@ static void ca0132_mmio_init(struct hda_codec *codec)
+@@ -9743,6 +12157,7 @@ static void ca0132_mmio_init(struct hda_codec *codec)
  		ca0132_mmio_init_sbz(codec);
  		break;
  	case QUIRK_AE5:
@@ -3626,7 +3671,7 @@ index b3e768b..063a3a1 100644
  		ca0132_mmio_init_ae5(codec);
  		break;
  	default:
-@@ -9791,19 +12184,19 @@ static void ae5_register_set(struct hda_codec *codec)
+@@ -9791,19 +12206,19 @@ static void ae5_register_set(struct hda_codec *codec)
  	}
  
  	for (i = cur_addr = 0; i < 3; i++, cur_addr++)
@@ -3650,7 +3695,7 @@ index b3e768b..063a3a1 100644
  
  	if (ca0132_quirk(spec) == QUIRK_AE7) {
  		ca0113_mmio_command_set_type2(codec, 0x48, 0x07, 0x83);
-@@ -9815,7 +12208,7 @@ static void ae5_register_set(struct hda_codec *codec)
+@@ -9815,7 +12230,7 @@ static void ae5_register_set(struct hda_codec *codec)
  	chipio_8051_write_direct(codec, 0x90, 0x00);
  	chipio_8051_write_direct(codec, 0x90, 0x10);
  
@@ -3659,7 +3704,7 @@ index b3e768b..063a3a1 100644
  		ca0113_mmio_command_set(codec, 0x48, 0x07, 0x83);
  }
  
-@@ -9824,9 +12217,53 @@ static void ae5_register_set(struct hda_codec *codec)
+@@ -9824,9 +12239,53 @@ static void ae5_register_set(struct hda_codec *codec)
   * here so they don't clutter up the main ca0132_init function
   * anymore than they have to.
   */
@@ -3713,7 +3758,7 @@ index b3e768b..063a3a1 100644
  
  	ca0132_alt_vol_setup(codec);
  
-@@ -9860,6 +12297,35 @@ static void ca0132_alt_init(struct hda_codec *codec)
+@@ -9860,6 +12319,35 @@ static void ca0132_alt_init(struct hda_codec *codec)
  		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
  		ca0113_mmio_command_set(codec, 0x30, 0x32, 0x3f);
  		break;
@@ -3749,7 +3794,7 @@ index b3e768b..063a3a1 100644
  	case QUIRK_AE7:
  		ca0132_gpio_init(codec);
  		chipio_8051_write_pll_pmu(codec, 0x49, 0x88);
-@@ -9906,6 +12372,8 @@ static int ca0132_init(struct hda_codec *codec)
+@@ -9906,6 +12394,8 @@ static int ca0132_init(struct hda_codec *codec)
  		} else {
  			if (ca0132_quirk(spec) == QUIRK_SBZ)
  				sbz_dsp_startup_check(codec);
@@ -3758,7 +3803,7 @@ index b3e768b..063a3a1 100644
  			return 0;
  		}
  	}
-@@ -9919,7 +12387,9 @@ static int ca0132_init(struct hda_codec *codec)
+@@ -9919,7 +12409,9 @@ static int ca0132_init(struct hda_codec *codec)
  
  	CLASS(snd_hda_power_pm, pm)(codec);
  
@@ -3769,7 +3814,7 @@ index b3e768b..063a3a1 100644
  		ae5_register_set(codec);
  
  	ca0132_init_params(codec);
-@@ -9946,6 +12416,9 @@ static int ca0132_init(struct hda_codec *codec)
+@@ -9946,6 +12438,9 @@ static int ca0132_init(struct hda_codec *codec)
  	case QUIRK_AE5:
  		ae5_setup_defaults(codec);
  		break;
@@ -3779,7 +3824,7 @@ index b3e768b..063a3a1 100644
  	case QUIRK_AE7:
  		ae7_setup_defaults(codec);
  		break;
-@@ -10020,6 +12493,8 @@ static void ca0132_free(struct hda_codec *codec)
+@@ -10020,6 +12515,8 @@ static void ca0132_free(struct hda_codec *codec)
  	struct ca0132_spec *spec = codec->spec;
  
  	cancel_delayed_work_sync(&spec->unsol_hp_work);
@@ -3788,7 +3833,7 @@ index b3e768b..063a3a1 100644
  	snd_hda_power_up(codec);
  	switch (ca0132_quirk(spec)) {
  	case QUIRK_SBZ:
-@@ -10032,6 +12507,7 @@ static void ca0132_free(struct hda_codec *codec)
+@@ -10032,6 +12529,7 @@ static void ca0132_free(struct hda_codec *codec)
  		r3d_exit_chip(codec);
  		break;
  	case QUIRK_AE5:
@@ -3796,7 +3841,7 @@ index b3e768b..063a3a1 100644
  		ae5_exit_chip(codec);
  		break;
  	case QUIRK_AE7:
-@@ -10048,6 +12524,8 @@ static void ca0132_free(struct hda_codec *codec)
+@@ -10048,6 +12546,8 @@ static void ca0132_free(struct hda_codec *codec)
  	ca0132_exit_chip(codec);
  
  	snd_hda_power_down(codec);
@@ -3805,7 +3850,7 @@ index b3e768b..063a3a1 100644
  #ifdef CONFIG_PCI
  	if (spec->mem_base)
  		pci_iounmap(codec->bus->pci, spec->mem_base);
-@@ -10112,6 +12590,10 @@ static void ca0132_config(struct hda_codec *codec)
+@@ -10112,6 +12612,10 @@ static void ca0132_config(struct hda_codec *codec)
  		codec_dbg(codec, "%s: QUIRK_AE5 applied.\n", __func__);
  		snd_hda_apply_pincfgs(codec, ae5_pincfgs);
  		break;
@@ -3816,7 +3861,7 @@ index b3e768b..063a3a1 100644
  	case QUIRK_AE7:
  		codec_dbg(codec, "%s: QUIRK_AE7 applied.\n", __func__);
  		snd_hda_apply_pincfgs(codec, ae7_pincfgs);
-@@ -10197,6 +12679,7 @@ static void ca0132_config(struct hda_codec *codec)
+@@ -10197,6 +12701,7 @@ static void ca0132_config(struct hda_codec *codec)
  		spec->dig_in = 0x09;
  		break;
  	case QUIRK_AE5:
@@ -3824,7 +3869,7 @@ index b3e768b..063a3a1 100644
  	case QUIRK_AE7:
  		spec->num_outputs = 2;
  		spec->out_pins[0] = 0x0B; /* Line out */
-@@ -10270,6 +12753,23 @@ static void ca0132_config(struct hda_codec *codec)
+@@ -10270,6 +12775,44 @@ static void ca0132_config(struct hda_codec *codec)
  		break;
  	}
  
@@ -3845,10 +3890,31 @@ index b3e768b..063a3a1 100644
 +					  AC_DEFCFG_MISC_SHIFT));
 +	}
 +
++	/* The AE-9 line-out jacks are permanently wired to the card as well.
++	 * Without NO_PRESENCE the desktop's profile set marks the speaker /
++	 * surround routes unavailable (the codec pins have no physical jack
++	 * sense), so the 5.1 profile disappears and WirePlumber falls back to
++	 * stereo or S/PDIF. Phantom "always plugged" jacks keep every analog
++	 * profile available.
++	 */
++	if (ca0132_quirk(spec) == QUIRK_AE9) {
++		static const hda_nid_t line_pins[] = { 0x0b, 0x0f, 0x10 };
++		unsigned int i;
++
++		for (i = 0; i < ARRAY_SIZE(line_pins); i++) {
++			unsigned int cfg =
++				snd_hda_codec_get_pincfg(codec, line_pins[i]);
++
++			snd_hda_codec_set_pincfg(codec, line_pins[i],
++				cfg | (AC_DEFCFG_MISC_NO_PRESENCE <<
++				       AC_DEFCFG_MISC_SHIFT));
++		}
++	}
++
  	/* Default HP/Speaker auto-detect from headphone pin verb: enable if the
  	 * pin config indicates presence detect (not AC_DEFCFG_MISC_NO_PRESENCE).
  	 */
-@@ -10380,6 +12880,19 @@ static int ca0132_generic_probe(struct hda_codec *codec)
+@@ -10380,6 +12923,19 @@ static int ca0132_generic_probe(struct hda_codec *codec)
  	return 0;
  }
  
@@ -3868,7 +3934,7 @@ index b3e768b..063a3a1 100644
  static void ca0132_codec_remove(struct hda_codec *codec)
  {
  	struct ca0132_spec *spec = codec->spec;
-@@ -10408,6 +12921,8 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -10408,6 +12964,8 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  		return -ENOMEM;
  	codec->spec = spec;
  	spec->codec = codec;
@@ -3877,7 +3943,7 @@ index b3e768b..063a3a1 100644
  
  	/* These must be set before any path is taken */
  	codec->pcm_format_first = 1;
-@@ -10421,6 +12936,21 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -10421,6 +12979,21 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  		break;
  	case QUIRK_GENERIC:
  		return ca0132_generic_probe(codec);
@@ -3899,7 +3965,7 @@ index b3e768b..063a3a1 100644
  	default:
  		break;
  	}
-@@ -10452,6 +12982,13 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -10452,6 +13025,13 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  		spec->mixers[0] = desktop_mixer;
  		snd_hda_codec_set_name(codec, "Sound BlasterX AE-5");
  		break;
@@ -3913,7 +3979,7 @@ index b3e768b..063a3a1 100644
  	case QUIRK_AE7:
  		spec->mixers[0] = desktop_mixer;
  		snd_hda_codec_set_name(codec, "Sound Blaster AE-7");
-@@ -10466,6 +13003,7 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -10466,6 +13046,7 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  	case QUIRK_SBZ:
  	case QUIRK_R3D:
  	case QUIRK_AE5:
@@ -3921,7 +3987,7 @@ index b3e768b..063a3a1 100644
  	case QUIRK_AE7:
  	case QUIRK_ZXR:
  		spec->use_alt_controls = true;
-@@ -10486,10 +13024,18 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -10486,10 +13067,18 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  
  #ifdef CONFIG_PCI
  	if (spec->use_pci_mmio) {
@@ -3941,7 +4007,7 @@ index b3e768b..063a3a1 100644
  		}
  	}
  #endif
-@@ -10498,6 +13044,8 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -10498,6 +13087,8 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  	spec->base_exit_verbs = ca0132_base_exit_verbs;
  
  	INIT_DELAYED_WORK(&spec->unsol_hp_work, ca0132_unsol_hp_delayed);
@@ -3950,7 +4016,7 @@ index b3e768b..063a3a1 100644
  
  	ca0132_init_chip(codec);
  
-@@ -10570,6 +13118,9 @@ static int ca0132_codec_suspend(struct hda_codec *codec)
+@@ -10570,6 +13161,9 @@ static int ca0132_codec_suspend(struct hda_codec *codec)
  		return 0;
  
  	cancel_delayed_work_sync(&spec->unsol_hp_work);
@@ -3960,3 +4026,6 @@ index b3e768b..063a3a1 100644
  	return 0;
  }
  
+-- 
+2.56.0
+

@@ -1,4 +1,4 @@
-From 75961d2a3eff84073f761a3d24c12b195f762a37 Mon Sep 17 00:00:00 2001
+From 9b0726dd44dbb9dedc74b01601f87f30ee177e2a Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 02/24] ALSA: hda/ca0132: AE-9: keep the desktop's card
@@ -43,6 +43,3 @@ index b4781f3..cfdcb91 100644
  	knew.info = ca0132_alt_output_select_get_info;
  	knew.get = ca0132_alt_output_select_get;
  	knew.put = ca0132_alt_output_select_put;
--- 
-2.56.0
-

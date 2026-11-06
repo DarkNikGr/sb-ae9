@@ -25,3 +25,8 @@ The series was applied to a clean `for-next` tree with plain `git am`
 builds against the 7.2.14 headers.  The squashed
 `patches/0002-...patch` is the same code for a quick read; the split
 series is the submission form.
+
+The output-switch patch also carries the analog 5.1 work: rear pair on
+codec pin `0x11`, the SABRE9006 mute for headphones and the balanced DSP
+output trims.  The pin-detection patch marks the line-out pins
+`NO_PRESENCE`, so ACP keeps every analog profile available.

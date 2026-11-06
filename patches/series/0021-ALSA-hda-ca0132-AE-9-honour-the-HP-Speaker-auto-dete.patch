@@ -1,4 +1,4 @@
-From f31e357a7e926370546fb99f6a2ba4f815bfa316 Mon Sep 17 00:00:00 2001
+From 6f203c7e06b0e70420212145549a91606387aad4 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:39 +0200
 Subject: [PATCH 21/24] ALSA: hda/ca0132: AE-9: honour the HP/Speaker
@@ -22,7 +22,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 27 insertions(+), 6 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 42ea3fd..9c4df9c 100644
+index 49dd3e1..212ec43 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -5096,13 +5096,25 @@ static int __ca0132_alt_select_out(struct hda_codec *codec)
@@ -57,7 +57,7 @@ index 42ea3fd..9c4df9c 100644
  	} else
  		spec->cur_out_type = spec->out_enum_val;
  	if (ca0132_quirk(spec) == QUIRK_AE9)
-@@ -10512,6 +10524,7 @@ static void ae9_acm_update_headphone_jack(struct hda_codec *codec, int reg2)
+@@ -10528,6 +10540,7 @@ static void ae9_acm_update_headphone_jack(struct hda_codec *codec, int reg2)
  	struct snd_kcontrol *kctl;
  	bool present = !(reg2 & 0x20);
  	bool notify = false;
@@ -65,7 +65,7 @@ index 42ea3fd..9c4df9c 100644
  	int output = present ? HEADPHONE_OUT : SPEAKER_OUT;
  	int err;
  
-@@ -10526,12 +10539,20 @@ static void ae9_acm_update_headphone_jack(struct hda_codec *codec, int reg2)
+@@ -10542,12 +10555,20 @@ static void ae9_acm_update_headphone_jack(struct hda_codec *codec, int reg2)
  	if (!kctl)
  		return;
  
@@ -86,6 +86,3 @@ index 42ea3fd..9c4df9c 100644
  	if (spec->out_enum_val == output && spec->cur_out_type == output)
  		goto out;
  
--- 
-2.56.0
-

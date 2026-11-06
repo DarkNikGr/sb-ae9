@@ -1,4 +1,4 @@
-From a3dbd0c88d5cecfab3d1bc5817a7f1e022caaa87 Mon Sep 17 00:00:00 2001
+From f3ecc2677a8a267f4de53cbc824f35fee7996bbf Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 05/24] ALSA: hda/ca0132: AE-9 ACM: knob press = mute (display
@@ -16,7 +16,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 69 insertions(+), 1 deletion(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 28c22f4..872cbd9 100644
+index 2841b40..c714110 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -9827,13 +9827,35 @@ static long ae9_master_level(struct hda_codec *codec, struct snd_kcontrol **kctl
@@ -116,6 +116,3 @@ index 28c22f4..872cbd9 100644
  	if (spec->ae9_acm_pending_fx) {
  		spec->ae9_acm_pending_fx = false;
  		ae9_acm_set_fx_light(spec, ae9_fx_enabled(spec));
--- 
-2.56.0
-

@@ -1,4 +1,4 @@
-From c5a273a8f0e72ee5f37b604c8267aac93d8cb3d0 Mon Sep 17 00:00:00 2001
+From c9ebd03ba1c0262fd472d9255646b298322ad867 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:45 +0200
 Subject: [PATCH 22/24] ALSA: hda/ca0132: AE-9: refresh the ACM display on
@@ -18,7 +18,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 285 insertions(+), 17 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 9c4df9c..0361384 100644
+index 212ec43..4dad0f4 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -20,6 +20,9 @@
@@ -60,7 +60,7 @@ index 9c4df9c..0361384 100644
  static const struct hda_pintbl alienware_pincfgs[] = {
  	{ 0x0b, 0x90170110 }, /* Builtin Speaker */
  	{ 0x0c, 0x411111f0 }, /* N/A */
-@@ -6873,7 +6890,7 @@ static int ae9_master_apply(struct snd_kcontrol *kcontrol,
+@@ -6887,7 +6904,7 @@ static int ae9_master_apply(struct snd_kcontrol *kcontrol,
  	guard(mutex)(&codec->control_mutex);
  	err = snd_hda_mixer_amp_volume_put(kcontrol, ucontrol);
  	/* A failed stereo put may already have changed one channel. */
@@ -69,7 +69,7 @@ index 9c4df9c..0361384 100644
  	if (err < 0)
  		return err;
  	if (ch & 1)
-@@ -7611,7 +7628,7 @@ static void ae9_vmaster_mute_changed(void *private_data, int enabled)
+@@ -7625,7 +7642,7 @@ static void ae9_vmaster_mute_changed(void *private_data, int enabled)
  
  	(void)enabled;
  	/* Refresh from the committed Master state in the ACM worker. */
@@ -78,7 +78,7 @@ index 9c4df9c..0361384 100644
  }
  
  static int ca0132_build_controls(struct hda_codec *codec)
-@@ -10063,6 +10080,185 @@ static void ae9_automute_probe(struct hda_codec *codec)
+@@ -10077,6 +10094,185 @@ static void ae9_automute_probe(struct hda_codec *codec)
   * from the 500 ms service work (Windows' periodic ACM thread); the ALSA
   * control hooks only set flags. ----
   */
@@ -264,7 +264,7 @@ index 9c4df9c..0361384 100644
  #define AE9_U_RBR 0xc00
  #define AE9_U_THR 0xc00
  #define AE9_U_DLL 0xc00
-@@ -10247,6 +10443,54 @@ static bool ae9_acm_keepalive(struct ca0132_spec *spec)
+@@ -10261,6 +10457,54 @@ static bool ae9_acm_keepalive(struct ca0132_spec *spec)
  	return n >= 8 && rx[0] == 0xf0 && rx[3];
  }
  
@@ -319,7 +319,7 @@ index 9c4df9c..0361384 100644
  /* F0 11 09 <8 ASCII, NUL padded> 00 F7 : display text */
  static void ae9_acm_display_frame(struct ca0132_spec *spec, const char *txt, bool wait)
  {
-@@ -10257,6 +10501,8 @@ static void ae9_acm_display_frame(struct ca0132_spec *spec, const char *txt, boo
+@@ -10271,6 +10515,8 @@ static void ae9_acm_display_frame(struct ca0132_spec *spec, const char *txt, boo
  		f[3 + i] = txt[i];
  	if (wait)
  		ae9_acm_cmd(spec, f, sizeof(f));
@@ -328,7 +328,7 @@ index 9c4df9c..0361384 100644
  	else
  		ae9_acm_tx(spec, f, sizeof(f));	/* fire and forget: volume display */
  }
-@@ -10334,7 +10580,7 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
+@@ -10348,7 +10594,7 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
  		}
  		caps = query_amp_caps(codec, 0x02, HDA_OUTPUT);
  		if (left < 0 || right < 0 || caps == ~0U) {
@@ -337,7 +337,7 @@ index 9c4df9c..0361384 100644
  			return;
  		}
  		offset = (caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT;
-@@ -10345,6 +10591,8 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
+@@ -10359,6 +10605,8 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
  		snprintf(txt, sizeof(txt), "%s%d.%d", db100 < 0 ? "-" : "",
  			 abs(db100) / 100, (abs(db100) % 100) / 10);
  	}
@@ -346,7 +346,7 @@ index 9c4df9c..0361384 100644
  	ae9_acm_display_frame(spec, txt, false);
  }
  
-@@ -10445,7 +10693,7 @@ static void ae9_acm_service_knob_press(struct hda_codec *codec)
+@@ -10459,7 +10707,7 @@ static void ae9_acm_service_knob_press(struct hda_codec *codec)
  	if (ms < 1500) {
  		ae9_toggle_ctl(codec, "Master Playback Switch", false);
  		codec_info(codec, "AE-9 ACM: knob press (%d ms) -> mute toggle\n", ms);
@@ -355,7 +355,7 @@ index 9c4df9c..0361384 100644
  	} else if (ms < 3000) {
  		ae9_toggle_ctl(codec, "AE-9 Output", true);	/* select_out flags pending_mode */
  		codec_info(codec, "AE-9 ACM: knob mid press (%d ms) -> output toggle\n", ms);
-@@ -10744,7 +10992,7 @@ static void ae9_acm_knob(struct hda_codec *codec)
+@@ -10760,7 +11008,7 @@ static void ae9_acm_knob(struct hda_codec *codec)
  	if (n <= 0)
  		return;
  	snd_ctl_notify(codec->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
@@ -364,7 +364,7 @@ index 9c4df9c..0361384 100644
  }
  
  /* The 500 ms ACM service (Windows: thread 0x413b4; 50 ms "turbo" while the
-@@ -10756,6 +11004,16 @@ static void ae9_acm_work_fn(struct work_struct *work)
+@@ -10772,6 +11020,16 @@ static void ae9_acm_work_fn(struct work_struct *work)
  						struct ca0132_spec, ae9_acm_work);
  	struct hda_codec *codec = spec->codec;
  	bool turbo = spec->ae9_acm_turbo > 0;
@@ -381,7 +381,7 @@ index 9c4df9c..0361384 100644
  
  	ae9_gpio_cmd(spec, 0x0105);
  	if (!spec->ae9_acm_present) {
-@@ -10764,13 +11022,16 @@ static void ae9_acm_work_fn(struct work_struct *work)
+@@ -10780,13 +11038,16 @@ static void ae9_acm_work_fn(struct work_struct *work)
  			if (spec->ae9_acm_present && !ae9_acm_poll) {
  				ae9_acm_show_volume(spec);
  				codec_info(codec, "AE-9 ACM: initialised; service parked (ae9_acm_poll=0)\n");
@@ -399,7 +399,7 @@ index 9c4df9c..0361384 100644
  	spec->ae9_acm_tick++;
  	/*
  	 * While the knob is moving only the knob and the display are serviced.
-@@ -10807,17 +11068,16 @@ static void ae9_acm_work_fn(struct work_struct *work)
+@@ -10823,17 +11084,16 @@ static void ae9_acm_work_fn(struct work_struct *work)
  	}
  	if (spec->ae9_acm_show_mode_ticks > 0) {
  		if (--spec->ae9_acm_show_mode_ticks == 0)
@@ -421,7 +421,7 @@ index 9c4df9c..0361384 100644
  	}
  }
  
-@@ -10904,7 +11164,7 @@ static void ae9_setup_defaults(struct hda_codec *codec)
+@@ -10926,7 +11186,7 @@ static void ae9_setup_defaults(struct hda_codec *codec)
  	codec_info(codec, "AE-9: converter bring-up done (capture-based, OutFX %s)\n",
  		   spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID] ? "on" : "off");
  	ae9_dump_dsp_output_state(codec, "idle after bring-up");
@@ -430,7 +430,7 @@ index 9c4df9c..0361384 100644
  }
  
  static void ae7_setup_defaults(struct hda_codec *codec)
-@@ -12099,8 +12359,7 @@ static int ca0132_init(struct hda_codec *codec)
+@@ -12121,8 +12381,7 @@ static int ca0132_init(struct hda_codec *codec)
  			if (ca0132_quirk(spec) == QUIRK_SBZ)
  				sbz_dsp_startup_check(codec);
  			if (ca0132_quirk(spec) == QUIRK_AE9)
@@ -440,7 +440,7 @@ index 9c4df9c..0361384 100644
  			return 0;
  		}
  	}
-@@ -12221,7 +12480,7 @@ static void ca0132_free(struct hda_codec *codec)
+@@ -12243,7 +12502,7 @@ static void ca0132_free(struct hda_codec *codec)
  
  	cancel_delayed_work_sync(&spec->unsol_hp_work);
  	cancel_delayed_work_sync(&spec->ae9_dump_work);
@@ -449,7 +449,7 @@ index 9c4df9c..0361384 100644
  	snd_hda_power_up(codec);
  	switch (ca0132_quirk(spec)) {
  	case QUIRK_SBZ:
-@@ -12649,6 +12908,7 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -12692,6 +12951,7 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  	codec->spec = spec;
  	spec->codec = codec;
  	mutex_init(&spec->ae9_output_mutex);
@@ -457,7 +457,7 @@ index 9c4df9c..0361384 100644
  
  	/* These must be set before any path is taken */
  	codec->pcm_format_first = 1;
-@@ -12750,10 +13010,18 @@ static int ca0132_codec_probe(struct hda_codec *codec,
+@@ -12793,10 +13053,18 @@ static int ca0132_codec_probe(struct hda_codec *codec,
  
  #ifdef CONFIG_PCI
  	if (spec->use_pci_mmio) {
@@ -477,7 +477,7 @@ index 9c4df9c..0361384 100644
  		}
  	}
  #endif
-@@ -12837,7 +13105,7 @@ static int ca0132_codec_suspend(struct hda_codec *codec)
+@@ -12880,7 +13148,7 @@ static int ca0132_codec_suspend(struct hda_codec *codec)
  
  	cancel_delayed_work_sync(&spec->unsol_hp_work);
  	cancel_delayed_work_sync(&spec->ae9_dump_work);
@@ -486,6 +486,3 @@ index 9c4df9c..0361384 100644
  	spec->ae9_acm_present = false;	/* re-probe the ACM after resume */
  	return 0;
  }
--- 
-2.56.0
-

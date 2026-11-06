@@ -1,4 +1,4 @@
-From 5f154b225d8ec09fbe197b630a01a54b046f11ca Mon Sep 17 00:00:00 2001
+From d24041e4f5c3ccb1c6bfdc3bd036791d1285d3ac Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 09/24] ALSA: hda/ca0132: AE-9 ACM: keep the knob/display path
@@ -17,10 +17,10 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 34 insertions(+), 14 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index e7b9491..509e502 100644
+index 9bf40b8..633df70 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
-@@ -9824,14 +9824,22 @@ static bool ae9_acm_keepalive(struct ca0132_spec *spec)
+@@ -9838,14 +9838,22 @@ static bool ae9_acm_keepalive(struct ca0132_spec *spec)
  }
  
  /* F0 11 09 <8 ASCII, NUL padded> 00 F7 : display text */
@@ -45,7 +45,7 @@ index e7b9491..509e502 100644
  }
  
  /* 'Master Playback Volume' on the AE-9 is a virtual master whose slave is
-@@ -9891,7 +9899,7 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
+@@ -9905,7 +9913,7 @@ static void ae9_acm_show_volume(struct ca0132_spec *spec)
  		snprintf(txt, sizeof(txt), "%s%d.%d",
  			 db100 ? "-" : "", db100 / 100,
  			 (db100 % 100) / 10);
@@ -54,7 +54,7 @@ index e7b9491..509e502 100644
  }
  
  /* Push the current Output Select to the ACM's analog mux (§10.6: reg2 bit2 =
-@@ -10237,6 +10245,7 @@ static void ae9_acm_work_fn(struct work_struct *work)
+@@ -10253,6 +10261,7 @@ static void ae9_acm_work_fn(struct work_struct *work)
  	struct ca0132_spec *spec = container_of(to_delayed_work(work),
  						struct ca0132_spec, ae9_acm_work);
  	struct hda_codec *codec = spec->codec;
@@ -62,7 +62,7 @@ index e7b9491..509e502 100644
  
  	ae9_gpio_cmd(spec, 0x0105);
  	if (!spec->ae9_acm_present) {
-@@ -10253,26 +10262,37 @@ static void ae9_acm_work_fn(struct work_struct *work)
+@@ -10269,26 +10278,37 @@ static void ae9_acm_work_fn(struct work_struct *work)
  	if (!ae9_acm_poll)
  		return;			/* parked at runtime via /sys/module/.../parameters */
  	spec->ae9_acm_tick++;
@@ -111,6 +111,3 @@ index e7b9491..509e502 100644
  	if (spec->ae9_acm_pending_fx) {
  		spec->ae9_acm_pending_fx = false;
  		ae9_acm_set_fx_light(spec, ae9_fx_enabled(spec));
--- 
-2.56.0
-

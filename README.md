@@ -708,9 +708,10 @@ tree and builds against the 7.2 headers.  The out-of-tree tree keeps a
 scoped version of the core readback because its DKMS module replaces
 `snd-hda-core` for every controller.  See `patches/README.md`.
 
-The analog 5.1 output, the pin `0x11` rear fix and the desktop sync services
-are newer than the current 24-patch series; folding them into the series is
-the next upstream step.
+The analog 5.1 work (rear pin `0x11`, SABRE mute, balanced DSP trims and
+`NO_PRESENCE` line-outs) is folded into the 24-patch series.  The desktop
+sync services and the GUI are userspace components and are not part of the
+kernel series.
 
 ---
 

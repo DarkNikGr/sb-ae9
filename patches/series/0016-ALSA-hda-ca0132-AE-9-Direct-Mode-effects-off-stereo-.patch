@@ -1,4 +1,4 @@
-From 92034819e2ea7e4806717babfe81ba978035bd2c Mon Sep 17 00:00:00 2001
+From 03999b4d017c806fd1c879d239e5da331d4ee766 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 16/24] ALSA: hda/ca0132: AE-9: Direct Mode effects-off, stereo
@@ -28,7 +28,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 63 insertions(+), 1 deletion(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 16ba749..ae5ffa0 100644
+index d26144c..591954f 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -4177,6 +4177,19 @@ static void r3di_gpio_dsp_status_set(struct hda_codec *codec,
@@ -51,7 +51,7 @@ index 16ba749..ae5ffa0 100644
  static int ca0132_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
  			struct hda_codec *codec,
  			unsigned int stream_tag,
-@@ -7156,10 +7169,58 @@ static int ae9_direct_ctl_get(struct snd_kcontrol *kcontrol,
+@@ -7170,10 +7183,58 @@ static int ae9_direct_ctl_get(struct snd_kcontrol *kcontrol,
  	return 0;
  }
  
@@ -111,7 +111,7 @@ index 16ba749..ae5ffa0 100644
  	return 0;
  }
  
-@@ -7710,6 +7771,7 @@ static const struct hda_pcm_stream ca0132_pcm_analog_playback = {
+@@ -7724,6 +7785,7 @@ static const struct hda_pcm_stream ca0132_pcm_analog_playback = {
  	.channels_min = 2,
  	.channels_max = 6,
  	.ops = {
@@ -119,6 +119,3 @@ index 16ba749..ae5ffa0 100644
  		.prepare = ca0132_playback_pcm_prepare,
  		.cleanup = ca0132_playback_pcm_cleanup,
  		.get_delay = ca0132_playback_pcm_delay,
--- 
-2.56.0
-

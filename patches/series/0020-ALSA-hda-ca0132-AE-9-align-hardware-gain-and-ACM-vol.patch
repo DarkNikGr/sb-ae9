@@ -1,4 +1,4 @@
-From 4cebd6e7ba2aa8bdf77c7873792b0538ca2484ff Mon Sep 17 00:00:00 2001
+From f2aeeb79b80fd4283913149b45dd31ad9d3e43d5 Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:39 +0200
 Subject: [PATCH 20/24] ALSA: hda/ca0132: AE-9: align hardware gain and ACM
@@ -19,7 +19,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 92 insertions(+), 78 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 9b10419..42ea3fd 100644
+index 8c2b96a..49dd3e1 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -1215,7 +1215,7 @@ struct ca0132_spec {
@@ -31,7 +31,7 @@ index 9b10419..42ea3fd 100644
  	bool ae9_acm_regs_logged;	/* first periodic ACM register check logged */
  	bool ae9_acm_knob_tx_failed;	/* knob query TX broke: stop until reload */
  	bool ae9_acm_button_tx_failed;	/* button query TX broke: stop until reload */
-@@ -6827,26 +6827,6 @@ static int ca0132_switch_put(struct snd_kcontrol *kcontrol,
+@@ -6841,26 +6841,6 @@ static int ca0132_switch_put(struct snd_kcontrol *kcontrol,
   * ADC for input. Currently only the SBZ sets dsp capture volume level, and
   * all alternative codecs set DSP playback volume.
   */
@@ -58,7 +58,7 @@ index 9b10419..42ea3fd 100644
  /* The DSP latches this module's value at stream start, so it must be at 0 dB
   * BEFORE any stream (WirePlumber's probe streams, the first Spotify stream)
   * opens the device; a stale value stays in effect until the device is closed.
-@@ -6866,35 +6846,29 @@ static void ae9_dsp_volume_unity(struct hda_codec *codec)
+@@ -6880,35 +6860,29 @@ static void ae9_dsp_volume_unity(struct hda_codec *codec)
  	spec->ae9_dsp_vol_zeroed = true;
  }
  
@@ -113,7 +113,7 @@ index 9b10419..42ea3fd 100644
  }
  
  static void ca0132_alt_dsp_volume_put(struct hda_codec *codec, hda_nid_t nid)
-@@ -7050,6 +7024,9 @@ static int ca0132_alt_volume_put(struct snd_kcontrol *kcontrol,
+@@ -7064,6 +7038,9 @@ static int ca0132_alt_volume_put(struct snd_kcontrol *kcontrol,
  		break;
  	}
  
@@ -123,7 +123,7 @@ index 9b10419..42ea3fd 100644
  	/* store the left and right volume */
  	if (ch & 1) {
  		spec->vnode_lvol[vnid - VNODE_START_NID] = *valp;
-@@ -7061,11 +7038,6 @@ static int ca0132_alt_volume_put(struct snd_kcontrol *kcontrol,
+@@ -7075,11 +7052,6 @@ static int ca0132_alt_volume_put(struct snd_kcontrol *kcontrol,
  	}
  
  	CLASS(snd_hda_power, pm)(codec);
@@ -135,7 +135,7 @@ index 9b10419..42ea3fd 100644
  	ca0132_alt_dsp_volume_put(codec, vnid);
  	guard(mutex)(&codec->control_mutex);
  	return snd_hda_mixer_amp_volume_put(kcontrol, ucontrol);
-@@ -8070,10 +8042,29 @@ static void init_input(struct hda_codec *codec, hda_nid_t pin, hda_nid_t adc)
+@@ -8084,10 +8056,29 @@ static void init_input(struct hda_codec *codec, hda_nid_t pin, hda_nid_t adc)
  
  static void refresh_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir)
  {
@@ -165,7 +165,7 @@ index 9b10419..42ea3fd 100644
  	snd_hda_override_amp_caps(codec, nid, dir, caps);
  }
  
-@@ -10269,29 +10260,32 @@ static void ae9_acm_display(struct ca0132_spec *spec, const char *txt)
+@@ -10283,29 +10274,32 @@ static void ae9_acm_display(struct ca0132_spec *spec, const char *txt)
   * scaled copy in vnode_lvol (using the latter as the knob's base made every
   * tick shrink the level when the follower was below 100%).
   */
@@ -209,7 +209,7 @@ index 9b10419..42ea3fd 100644
  static bool ae9_master_muted(struct hda_codec *codec)
  {
  	struct snd_kcontrol *kctl = snd_hda_find_mixer_ctl(codec, "Master Playback Switch");
-@@ -10311,16 +10305,34 @@ static bool ae9_master_muted(struct hda_codec *codec)
+@@ -10325,16 +10319,34 @@ static bool ae9_master_muted(struct hda_codec *codec)
  
  static void ae9_acm_show_volume(struct ca0132_spec *spec)
  {
@@ -251,7 +251,7 @@ index 9b10419..42ea3fd 100644
  	ae9_acm_display_frame(spec, txt, false);
  }
  
-@@ -10658,9 +10670,9 @@ static bool ae9_acm_init(struct hda_codec *codec)
+@@ -10674,9 +10686,9 @@ static bool ae9_acm_init(struct hda_codec *codec)
  /* Volume knob: F0 C2 00 F7 -> RX 8: [3] dir, [4] detents, [5..6] ms (fw >= 0x01957D60).
   * Mapping decoded from CtxHda 0x3f8a8 + board 0x35298 (2026-09-08):
   *  - dir 0 = clockwise = louder, dir 1 = quieter (the board subtracts on dir 1);
@@ -264,7 +264,7 @@ index 9b10419..42ea3fd 100644
   * Windows' ms-based acceleration (x2/x3/x4 for >4 detents per 50 ms poll) is
   * deliberately NOT applied: our poll is slower, so it fired on normal turning
   * and produced +40..+64 jumps.
-@@ -10673,7 +10685,7 @@ static void ae9_acm_knob(struct hda_codec *codec)
+@@ -10689,7 +10701,7 @@ static void ae9_acm_knob(struct hda_codec *codec)
  	struct snd_ctl_elem_value *uctl;
  	u8 rx[8];
  	int n, dir, steps, delta;
@@ -273,7 +273,7 @@ index 9b10419..42ea3fd 100644
  
  	if (!ae9_acm_knob_tx(spec, q, sizeof(q)))
  		return;
-@@ -10696,18 +10708,20 @@ static void ae9_acm_knob(struct hda_codec *codec)
+@@ -10712,18 +10724,20 @@ static void ae9_acm_knob(struct hda_codec *codec)
  	spec->ae9_acm_turbo = 10;
  	if (!delta)
  		return;
@@ -299,6 +299,3 @@ index 9b10419..42ea3fd 100644
  	snd_ctl_notify(codec->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
  	spec->ae9_acm_disp_dirty = true;
  }
--- 
-2.56.0
-

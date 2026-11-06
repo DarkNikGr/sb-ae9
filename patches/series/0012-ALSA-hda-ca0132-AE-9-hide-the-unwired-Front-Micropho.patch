@@ -1,4 +1,4 @@
-From fba2eed8a633b59bb428d243cb96431bf3eb9b9e Mon Sep 17 00:00:00 2001
+From a90d80cbdab61ebfcf4abea286eba0bc73302f9e Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 12/24] ALSA: hda/ca0132: AE-9: hide the unwired Front
@@ -15,10 +15,10 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 24 insertions(+), 11 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 39cedc8..bf96815 100644
+index df9eb85..4d0335b 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
-@@ -6240,14 +6240,31 @@ static int ae5_sound_filter_put(struct snd_kcontrol *kcontrol,
+@@ -6254,14 +6254,31 @@ static int ae5_sound_filter_put(struct snd_kcontrol *kcontrol,
   * front microphone has no auto-detect, and we need a way to set the rear
   * as line-in
   */
@@ -53,7 +53,7 @@ index 39cedc8..bf96815 100644
  	strscpy(uinfo->value.enumerated.name,
  			in_src_str[uinfo->value.enumerated.item]);
  	return 0;
-@@ -6258,8 +6275,11 @@ static int ca0132_alt_input_source_get(struct snd_kcontrol *kcontrol,
+@@ -6272,8 +6289,11 @@ static int ca0132_alt_input_source_get(struct snd_kcontrol *kcontrol,
  {
  	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
  	struct ca0132_spec *spec = codec->spec;
@@ -65,7 +65,7 @@ index 39cedc8..bf96815 100644
  	return 0;
  }
  
-@@ -6269,14 +6289,7 @@ static int ca0132_alt_input_source_put(struct snd_kcontrol *kcontrol,
+@@ -6283,14 +6303,7 @@ static int ca0132_alt_input_source_put(struct snd_kcontrol *kcontrol,
  	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
  	struct ca0132_spec *spec = codec->spec;
  	int sel = ucontrol->value.enumerated.item[0];
@@ -81,6 +81,3 @@ index 39cedc8..bf96815 100644
  
  	if (sel >= items)
  		return 0;
--- 
-2.56.0
-

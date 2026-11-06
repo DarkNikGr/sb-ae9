@@ -1,4 +1,4 @@
-From 5f877e5f2bd49196b5c78ae6bb8fe14dcfdaf7c8 Mon Sep 17 00:00:00 2001
+From 77d300b9c41f2db96ff13867081b59591b8eaa3d Mon Sep 17 00:00:00 2001
 From: DarkNikGr <mitakidisnikos@gmail.com>
 Date: Thu, 5 Nov 2026 02:17:07 +0200
 Subject: [PATCH 10/24] ALSA: hda/ca0132: AE-9: allow capture on the secondary
@@ -16,7 +16,7 @@ Signed-off-by: DarkNikGr <mitakidisnikos@gmail.com>
  1 file changed, 20 insertions(+), 12 deletions(-)
 
 diff --git a/sound/hda/codecs/ca0132.c b/sound/hda/codecs/ca0132.c
-index 509e502..b1e7cf9 100644
+index 633df70..ba6c2e0 100644
 --- a/sound/hda/codecs/ca0132.c
 +++ b/sound/hda/codecs/ca0132.c
 @@ -31,26 +31,28 @@ static int ae9_acm_poll = 1;
@@ -58,7 +58,7 @@ index 509e502..b1e7cf9 100644
  #include <asm/io.h>
  #include <sound/core.h>
  #include <sound/hda_codec.h>
-@@ -7654,8 +7656,14 @@ static const struct hda_pcm_stream ca0132_pcm_digital_capture = {
+@@ -7668,8 +7670,14 @@ static const struct hda_pcm_stream ca0132_pcm_digital_capture = {
  
  static inline bool ae9_capture_blocked(struct hda_codec *codec)
  {
@@ -75,6 +75,3 @@ index 509e502..b1e7cf9 100644
  }
  
  static int ca0132_build_pcms(struct hda_codec *codec)
--- 
-2.56.0
-
